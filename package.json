@@ -1,0 +1,20 @@
+{
+  "name": "spv-node",
+  "version": "0.0.0",
+  "description": "dogecoin",
+  "main": "main.js",
+  "scripts": {
+    "start": "nodemon main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "dogecoin",
+    "spv",
+    "spvnode"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^1.14.8"
+  }
+}
