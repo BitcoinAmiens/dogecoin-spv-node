@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "nodemon main.js",
+    "bloom": "nodemon src/utils/bloom.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -16,5 +17,9 @@
   "license": "ISC",
   "devDependencies": {
     "nodemon": "^1.14.8"
+  },
+  "dependencies": {
+    "bloom-filter": "^0.2.0",
+    "exp-net": "0.0.1"
   }
 }

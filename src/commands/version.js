@@ -1,4 +1,6 @@
-const write64 = require('../utils/write64')
+const {write64, readI64, readU64} = require('../utils/write64')
+const binet = require('exp-net')
+const CompactSize = require('../utils/compactSize')
 
 const NODE_IP = '163.172.182.246'
 const NODE_PORT = 44556
@@ -65,7 +67,62 @@ function decodeVersionMessage (data) {
 
   version.version = data.readUInt32LE(offset)
 
-  console.log(version)
+  offset += 4
+
+  version.services = data.readUInt32LE(offset)
+  // The last 4 bytes are not used
+  offset += 8
+
+  var timestamp = readI64(data, offset)
+
+  version.timestamp = new Date(timestamp)
+
+  offset += 8
+
+  version.remote = {}
+
+  version.remote.services = data.readUInt32LE(offset)
+  // The last 4 bytes are not used
+  offset += 8
+
+  var host = data.slice(offset, offset + 16)
+  version.remote.host = binet.toString(host)
+  offset += 16
+
+  version.remote.port = data.readUInt16BE(offset)
+  offset += 2
+
+  version.local = {}
+
+  version.local.services = data.readUInt32LE(offset)
+  // The last 4 bytes are not used
+  offset += 8
+
+  var host = data.slice(offset, offset + 16)
+  version.local.host = binet.toString(host)
+  offset += 16
+
+  version.local.port = data.readUInt16BE(offset)
+  offset += 2
+
+  var nonce = readU64(data, offset)
+  version.nonce = nonce
+  offset += 8
+
+  var compactSize = CompactSize.fromBuffer(data, offset)
+
+  offset += compactSize.offset
+  var userAgentSize = compactSize.size
+
+  var userAgent = data.slice(offset, offset + userAgentSize)
+
+  version.agent = userAgent.toString()
+  offset += userAgentSize
+
+  version.height = data.readInt32LE(offset)
+  offset += 4
+
+  version.relay = data.readUInt8(offset)
 
   return version
 }
