@@ -1,7 +1,7 @@
 var Peer = require('./peer')
 
-const NODE_IP = '163.172.182.246'
-const NODE_PORT = 44556
+const NODE_IP = '192.168.50.4'
+const NODE_PORT = 18444
 
 class SPVNode {
   constructor () {
@@ -12,7 +12,8 @@ class SPVNode {
     var peer = new Peer(NODE_IP, NODE_PORT)
     this.peers.push(peer)
     peer.connect().then(() => {
-      peer.sendFilterLoad()
+      //peer.sendFilterLoad()
+      console.log('OK')
     })
     .catch((error) => {
       console.log(error)
