@@ -12,10 +12,12 @@ function encodeFilterLoad (filter) {
     buffer.writeUInt8(filter.vData[i], offset)
     offset += 1
   }
-  buffer.writeInt32BE(filter.nHashFuncs, offset)
+
+  buffer.writeInt32LE(filter.nHashFuncs, offset)
+  console.log(buffer)
   offset += 4
 
-  buffer.writeInt32BE(filter.nTweak, offset)
+  buffer.writeInt32LE(filter.nTweak, offset)
   offset += 4
 
 

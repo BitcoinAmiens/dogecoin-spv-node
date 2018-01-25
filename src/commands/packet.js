@@ -33,7 +33,11 @@ function preparePacket (cmd, payload) {
 }
 
 function decodePacket (packet) {
+  let packets = []
   let offset = 0
+
+  console.log(packet)
+
   // Be sure we are on the same network and same protocol
   if (packet.readUInt32LE(offset) !== MAGIC_BYTES) {
     // If not send "reject" message ?
@@ -61,7 +65,7 @@ function decodePacket (packet) {
   checksumToVerify = crypto.createHash('sha256').update(checksumToVerify).digest()
 
   if (!Buffer.compare(checksum, checksumToVerify.slice(0,4))) {
-    return {cmd, payload}
+    return {cmd, payload, length}
   }
 
   return false

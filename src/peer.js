@@ -32,7 +32,6 @@ class Peer extends EventEmitter {
         console.log('Connect')
         var message = version.versionMessage()
         const versionPacket = packet.preparePacket('version', message)
-        this.socket.write(versionPacket)
 
         this.on('verack', function () {
           resolve()
@@ -42,34 +41,49 @@ class Peer extends EventEmitter {
           this.closed = true
           reject('closed')
         })
+
+        this.socket.write(versionPacket)
       })
     })
   }
 
   _onData (data) {
-    var decodedResponse = packet.decodePacket(data)
 
-    switch (decodedResponse.cmd) {
-      case 'version':
-        console.log('version command received')
-        const versionMessage = version.decodeVersionMessage(decodedResponse.payload)
-        this._sendVerackMessage()
+    var decodedResponses = []
+
+    // decode packet need to be able to decode several message in one packet
+    // https://stackoverflow.com/questions/1010753/missed-socket-message#1010777
+    while (data.length > 0) {
+      var decodedResponse = packet.decodePacket(data)
+      if (!decodedResponse) {
         break
-      case 'verack':
-        this.verack = true
-        this.emit('verack')
-        console.log('verack command received')
-        break
-      case 'ping':
-        this._sendPongMessage()
-        break
-      case 'inv':
-        const invMessage = inv.decodeInvMessage(decodedResponse.payload)
-        console.log(invMessage)
-        break
-      default:
-        console.log(decodedResponse.cmd)
+      }
+      data = data.slice(decodedResponse.length + 24)
+      decodedResponses.push(decodedResponse)
     }
+
+    decodedResponses.forEach((msg) => {
+      console.log(msg)
+      switch (msg.cmd) {
+        case 'version':
+          const versionMessage = version.decodeVersionMessage(msg.payload)
+          this._sendVerackMessage()
+          break
+        case 'verack':
+          this.verack = true
+          this.emit('verack')
+          break
+        case 'ping':
+          this._sendPongMessage()
+          break
+        case 'inv':
+          const invMessage = inv.decodeInvMessage(msg.payload)
+          console.log(invMessage)
+          break
+        default:
+          console.log(msg.cmd)
+      }
+    })
   }
 
   sendAddr () {
@@ -82,11 +96,13 @@ class Peer extends EventEmitter {
   }
 
   sendFilterLoad () {
-    const address = 'ngGM8A6kjA8HSvkCJac2UkSAHanZifUBWY'
+    const address = '5b2a3f53f605d62c53e62932dac6925e3d74afa5a4b459745c36d42d0ed26a69'
     var filter = BloomFilter.create(1, 0.0001)
     var bufferAddress = new Buffer(address)
     filter.insert(bufferAddress)
+    console.log(filter.toObject().vData)
     var payload = filterload.encodeFilterLoad(filter.toObject())
+    console.log(payload)
     const filterloadMessage = packet.preparePacket('filterload', payload)
     console.log(filterloadMessage)
     this.socket.write(filterloadMessage)
