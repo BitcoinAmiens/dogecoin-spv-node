@@ -13,7 +13,8 @@ class SPVNode {
     this.peers.push(peer)
     peer.connect().then(() => {
       peer.sendFilterLoad()
-      console.log('OK')
+      // peer.sendGetData()
+      peer.sendGetHeader()
     })
     .catch((error) => {
       console.log(error)

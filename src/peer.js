@@ -1,5 +1,4 @@
 var net = require('net')
-var crypto = require('crypto')
 var EventEmitter = require('events')
 var BloomFilter = require('bloom-filter')
 
@@ -7,6 +6,8 @@ var packet = require('./commands/packet')
 var version = require('./commands/version')
 var inv = require('./commands/inv')
 var filterload = require('./commands/filterload')
+var getheaders = require('./commands/getheaders')
+var headers = require('./commands/headers')
 
 class Peer extends EventEmitter {
   constructor (ip, port) {
@@ -74,11 +75,13 @@ class Peer extends EventEmitter {
           this.emit('verack')
           break
         case 'ping':
-          this._sendPongMessage()
+          this._sendPongMessage(msg.payload)
           break
         case 'inv':
           const invMessage = inv.decodeInvMessage(msg.payload)
-          console.log(invMessage)
+          break
+        case 'headers':
+          const headersMessage = headers.decodeHeadersMessage(msg.payload)
           break
         default:
           console.log(msg.cmd)
@@ -96,16 +99,26 @@ class Peer extends EventEmitter {
   }
 
   sendFilterLoad () {
-    const address = '5b2a3f53f605d62c53e62932dac6925e3d74afa5a4b459745c36d42d0ed26a69'
+    const address = '3d2160a3b5dc4a9d62e7e66a295f70313ac808440ef7400d6c0772171ce973a5'
     var filter = BloomFilter.create(1, 0.0001)
     var bufferAddress = new Buffer(address)
     filter.insert(bufferAddress)
-    console.log(filter.toObject().vData)
     var payload = filterload.encodeFilterLoad(filter.toObject())
-    console.log(payload)
     const filterloadMessage = packet.preparePacket('filterload', payload)
-    console.log(filterloadMessage)
     this.socket.write(filterloadMessage)
+    console.log('Filterload sent !')
+  }
+
+  sendGetHeader () {
+    console.log('Prepare getHeaders')
+    var payload = getheaders.encodeGetheadersMessage()
+    const getHeadersMessage = packet.preparePacket('getheaders', payload)
+    this.socket.write(getHeadersMessage)
+  }
+
+  sendGetData () {
+    var getDataMessage = packet.preparePacket('getdata', Buffer.alloc(0))
+    this.socket.write(getDataMessage)
   }
 
   _sendVerackMessage () {
@@ -113,8 +126,8 @@ class Peer extends EventEmitter {
     this.socket.write(verackMessage)
   }
 
-  _sendPongMessage () {
-    const pongMessage = packet.preparePacket('pong', crypto.randomBytes(64))
+  _sendPongMessage (nonce) {
+    const pongMessage = packet.preparePacket('pong', nonce)
     this.socket.write(pongMessage)
   }
 

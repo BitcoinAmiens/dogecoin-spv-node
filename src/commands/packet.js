@@ -35,9 +35,7 @@ function preparePacket (cmd, payload) {
 function decodePacket (packet) {
   let packets = []
   let offset = 0
-
-  console.log(packet)
-
+  
   // Be sure we are on the same network and same protocol
   if (packet.readUInt32LE(offset) !== MAGIC_BYTES) {
     // If not send "reject" message ?
