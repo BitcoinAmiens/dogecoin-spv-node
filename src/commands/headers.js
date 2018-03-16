@@ -19,6 +19,8 @@ function decodeHeadersMessage (payload) {
 
     var previousHash = payload.slice(offset, offset + 32)
 
+    // console.log(previousHash.toString('hex'))
+
     var previousHashHex = ''
     for (var j = 31; j >=0; j--) {
       previousHashHex += previousHash.slice(j, j+1).toString('hex')

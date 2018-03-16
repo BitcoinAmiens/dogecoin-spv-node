@@ -1,6 +1,5 @@
 var net = require('net')
 var EventEmitter = require('events')
-var BloomFilter = require('bloom-filter')
 
 var packet = require('./commands/packet')
 var version = require('./commands/version')
@@ -8,6 +7,11 @@ var inv = require('./commands/inv')
 var filterload = require('./commands/filterload')
 var getheaders = require('./commands/getheaders')
 var headers = require('./commands/headers')
+var getblocks = require('./commands/getblocks')
+var reject = require('./commands/reject')
+var block = require('./commands/block')
+var merkleblock = require('./commands/merkleblock')
+var tx = require('./commands/tx')
 
 class Peer extends EventEmitter {
   constructor (ip, port) {
@@ -64,7 +68,6 @@ class Peer extends EventEmitter {
     }
 
     decodedResponses.forEach((msg) => {
-      console.log(msg)
       switch (msg.cmd) {
         case 'version':
           const versionMessage = version.decodeVersionMessage(msg.payload)
@@ -79,9 +82,28 @@ class Peer extends EventEmitter {
           break
         case 'inv':
           const invMessage = inv.decodeInvMessage(msg.payload)
+          var payload = inv.encodeInvMessage(invMessage)
+          this.sendGetData(payload)
           break
         case 'headers':
           const headersMessage = headers.decodeHeadersMessage(msg.payload)
+          console.log(headersMessage)
+          break
+        case 'reject':
+          const rejectMessage = reject.decodeRejectMessage(msg.payload)
+          console.log(rejectMessage)
+          break
+        case 'block':
+          const blockMessage = block.decodeBlockMessage(msg.payload)
+          // console.log(blockMessage)
+          break
+        case 'merkleblock':
+          const merkleblockMessage = merkleblock.decodeMerkleblockMessage(msg.payload)
+          //console.log(merkleblockMessage)
+          break
+        case 'tx':
+          const txMessage = tx.decodeTxMessage(msg.payload)
+          console.log(txMessage)
           break
         default:
           console.log(msg.cmd)
@@ -98,26 +120,34 @@ class Peer extends EventEmitter {
     this.socket.write(getAddrMessage)
   }
 
-  sendFilterLoad () {
-    const address = '3d2160a3b5dc4a9d62e7e66a295f70313ac808440ef7400d6c0772171ce973a5'
-    var filter = BloomFilter.create(1, 0.0001)
-    var bufferAddress = new Buffer(address)
-    filter.insert(bufferAddress)
+  sendFilterLoad (filter) {
     var payload = filterload.encodeFilterLoad(filter.toObject())
     const filterloadMessage = packet.preparePacket('filterload', payload)
-    this.socket.write(filterloadMessage)
-    console.log('Filterload sent !')
+    return new Promise((resolve, reject) => {
+      this.socket.write(filterloadMessage, function (err) {
+        if (err) {
+          reject(err)
+          return
+        }
+        resolve()
+      })
+    })
   }
 
   sendGetHeader () {
-    console.log('Prepare getHeaders')
     var payload = getheaders.encodeGetheadersMessage()
     const getHeadersMessage = packet.preparePacket('getheaders', payload)
     this.socket.write(getHeadersMessage)
   }
 
-  sendGetData () {
-    var getDataMessage = packet.preparePacket('getdata', Buffer.alloc(0))
+  sendGetBlocks () {
+    var payload = getblocks.encodeGetblocksMessage()
+    const getBlocksMessage = packet.preparePacket('getblocks', payload)
+    this.socket.write(getBlocksMessage)
+  }
+
+  sendGetData (inv) {
+    var getDataMessage = packet.preparePacket('getdata', inv)
     this.socket.write(getDataMessage)
   }
 

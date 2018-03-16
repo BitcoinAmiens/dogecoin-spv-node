@@ -35,7 +35,7 @@ function preparePacket (cmd, payload) {
 function decodePacket (packet) {
   let packets = []
   let offset = 0
-  
+
   // Be sure we are on the same network and same protocol
   if (packet.readUInt32LE(offset) !== MAGIC_BYTES) {
     // If not send "reject" message ?
@@ -45,8 +45,7 @@ function decodePacket (packet) {
   offset += 4
 
   // Get the command
-  var cmd = packet.toString('ascii', offset, 12).replace(/\0/g, '')
-
+  var cmd = packet.toString('ascii', offset, offset + 12).replace(/\0/g, '')
   offset += 12
 
   var length = packet.readUInt32LE(offset)
