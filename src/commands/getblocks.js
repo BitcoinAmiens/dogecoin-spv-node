@@ -7,7 +7,12 @@ function encodeGetblocksMessage () {
   // For the sake of the demo
   // But those need to be parameters
   var hashCount = 1
+
+  // Regtest
   var blockHash = '3d2160a3b5dc4a9d62e7e66a295f70313ac808440ef7400d6c0772171ce973a5'
+
+  // Testnet
+  // var blockHash = 'bb0a78264637406b6360aad926284d544d7049f45189db5664f3c4d07350559e'
 
   const buffer = new Buffer.alloc(4 + 32 + hashCount + hashCount * 32)
   let offset = 0

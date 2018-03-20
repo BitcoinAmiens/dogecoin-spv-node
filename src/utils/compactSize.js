@@ -12,11 +12,11 @@ class CompactSize {
 
     switch (firstByte.toString('hex')) {
       case 'fd':
-        this.size = data.readUInt16BE(this.offset)
+        this.size = data.readUInt16LE(this.offset)
         this.offset += 2
         break
       case 'fe':
-        this.size = data.readUInt32BE(this.offset)
+        this.size = data.readUInt32LE(this.offset)
         this.offset += 4
         break
       case 'ff':
@@ -43,12 +43,12 @@ class CompactSize {
       buffer = Buffer.alloc(3)
       sizeByte = Buffer.from('fd', 'hex')
       sizeByte.copy(buffer)
-      buffer.writeUInt16BE(size, 1)
+      buffer.writeUInt16LE(size, 1)
     } else if (size <= 4294967295) {
       buffer = Buffer.alloc(5)
       sizeByte = Buffer.from('fe', 'hex')
       sizeByte.copy(buffer)
-      buffer.writeUInt32BE(size, 1)
+      buffer.writeUInt32LE(size, 1)
     } else if (size <= 18446744073709552000) {
       buffer = Buffer.alloc(9)
       sizeByte = Buffer.from('ff', 'hex')

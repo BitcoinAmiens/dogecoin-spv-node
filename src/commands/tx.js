@@ -62,7 +62,7 @@ function decodeTxMessage (payload) {
     txOut.pkScript = payload.slice(offset, offset + txOut.pkScriptSize)
     offset += compactSize.size
 
-    console.log(bs58check.encode(txOut.pkScript.slice(3, txOut.pkScript.length )))
+    // console.log(bs58check.encode(txOut.pkScript.slice(3, txOut.pkScript.length)))
 
     tx.txOuts.push(txOut)
   }

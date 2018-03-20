@@ -26,6 +26,7 @@ class Peer extends EventEmitter {
     this.agent
     this.verack = false
     this.closed = false
+    this.incompleteData
 
     this.socket.on('data', this._onData.bind(this))
     this.socket.on('close', this._onClose.bind(this))
@@ -34,11 +35,12 @@ class Peer extends EventEmitter {
   connect () {
     return new Promise ( (resolve, reject) => {
       this.socket.connect(this.port, this.ip, () => {
-        console.log('Connect')
+        console.log('Connecting...')
         var message = version.versionMessage()
         const versionPacket = packet.preparePacket('version', message)
 
         this.on('verack', function () {
+          console.log('Connected !')
           resolve()
         })
 
@@ -54,6 +56,11 @@ class Peer extends EventEmitter {
 
   _onData (data) {
 
+    if (this.incompleteData) {
+      data = Buffer.concat([this.incompleteData, data], this.incompleteData.length + data.length)
+      this.incompleteData = null
+    }
+
     var decodedResponses = []
 
     // decode packet need to be able to decode several message in one packet
@@ -61,6 +68,8 @@ class Peer extends EventEmitter {
     while (data.length > 0) {
       var decodedResponse = packet.decodePacket(data)
       if (!decodedResponse) {
+        this.incompleteData = Buffer.allocUnsafe(data.length)
+        data.copy(this.incompleteData)
         break
       }
       data = data.slice(decodedResponse.length + 24)
@@ -68,6 +77,7 @@ class Peer extends EventEmitter {
     }
 
     decodedResponses.forEach((msg) => {
+      console.log(msg.cmd)
       switch (msg.cmd) {
         case 'version':
           const versionMessage = version.decodeVersionMessage(msg.payload)
@@ -87,7 +97,7 @@ class Peer extends EventEmitter {
           break
         case 'headers':
           const headersMessage = headers.decodeHeadersMessage(msg.payload)
-          console.log(headersMessage)
+          // console.log(headersMessage)
           break
         case 'reject':
           const rejectMessage = reject.decodeRejectMessage(msg.payload)
@@ -95,11 +105,11 @@ class Peer extends EventEmitter {
           break
         case 'block':
           const blockMessage = block.decodeBlockMessage(msg.payload)
-          // console.log(blockMessage)
+          console.log(blockMessage)
           break
         case 'merkleblock':
           const merkleblockMessage = merkleblock.decodeMerkleblockMessage(msg.payload)
-          //console.log(merkleblockMessage)
+          // console.log(merkleblockMessage)
           break
         case 'tx':
           const txMessage = tx.decodeTxMessage(msg.payload)
@@ -129,6 +139,7 @@ class Peer extends EventEmitter {
           reject(err)
           return
         }
+        console.log('Filter loaded')
         resolve()
       })
     })
@@ -137,18 +148,36 @@ class Peer extends EventEmitter {
   sendGetHeader () {
     var payload = getheaders.encodeGetheadersMessage()
     const getHeadersMessage = packet.preparePacket('getheaders', payload)
-    this.socket.write(getHeadersMessage)
+    this.socket.write(getHeadersMessage, function (err) {
+      if (err) {
+        console.error(err)
+        return
+      }
+      console.log('getheaders message sent')
+    })
   }
 
   sendGetBlocks () {
     var payload = getblocks.encodeGetblocksMessage()
     const getBlocksMessage = packet.preparePacket('getblocks', payload)
-    this.socket.write(getBlocksMessage)
+    this.socket.write(getBlocksMessage, function (err) {
+      if (err) {
+        console.error(err)
+        return
+      }
+      console.log('getblocks message sent')
+    })
   }
 
   sendGetData (inv) {
     var getDataMessage = packet.preparePacket('getdata', inv)
-    this.socket.write(getDataMessage)
+    this.socket.write(getDataMessage, function (err) {
+      if (err) {
+        console.error(err)
+        return
+      }
+      console.log('inv message sent')
+    })
   }
 
   _sendVerackMessage () {

@@ -27,7 +27,7 @@ function versionMessage () {
     agent: 0,
     nonce: 0,
     height: 0,
-    relay: true
+    relay: false
   }
 
   offset = buffer.writeInt32LE(payload.version, offset, true)
