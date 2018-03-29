@@ -1,6 +1,5 @@
 const CompactSize = require('../utils/compactSize')
 const { readU64 } = require('../utils/write64')
-var bs58check = require('bs58check')
 
 // TODO : Same code than for block !!!!
 function decodeTxMessage (payload) {
@@ -17,7 +16,7 @@ function decodeTxMessage (payload) {
 
   tx.txIns = []
   for (var i = 0; i < tx.txInCount; i++) {
-    txIn = {}
+    let txIn = {}
 
     txIn.previousOutput = {}
 
@@ -28,7 +27,6 @@ function decodeTxMessage (payload) {
     offset += 4
 
     if (txIn.previousOutput.hash === '0000000000000000000000000000000000000000000000000000000000000000') {
-
       compactSize = CompactSize.fromBuffer(payload, offset)
       offset += compactSize.offset
 
@@ -48,8 +46,8 @@ function decodeTxMessage (payload) {
   tx.txOutCount = compactSize.size
 
   tx.txOuts = []
-  for (var i = 0; i < tx.txOutCount; i++) {
-    txOut = {}
+  for (var j = 0; j < tx.txOutCount; j++) {
+    let txOut = {}
 
     txOut.value = readU64(payload, offset)
     offset += 8
@@ -61,8 +59,6 @@ function decodeTxMessage (payload) {
 
     txOut.pkScript = payload.slice(offset, offset + txOut.pkScriptSize)
     offset += compactSize.size
-
-    // console.log(bs58check.encode(txOut.pkScript.slice(3, txOut.pkScript.length)))
 
     tx.txOuts.push(txOut)
   }

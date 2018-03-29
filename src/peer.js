@@ -14,8 +14,10 @@ var merkleblock = require('./commands/merkleblock')
 var tx = require('./commands/tx')
 
 class Peer extends EventEmitter {
-  constructor (ip, port) {
+  constructor (ip, port, node) {
     super()
+
+    this.node = node
 
     this.id = -1
     this.socket = new net.Socket()
@@ -77,7 +79,6 @@ class Peer extends EventEmitter {
     }
 
     decodedResponses.forEach((msg) => {
-      console.log(msg.cmd)
       switch (msg.cmd) {
         case 'version':
           const versionMessage = version.decodeVersionMessage(msg.payload)
@@ -113,7 +114,8 @@ class Peer extends EventEmitter {
           break
         case 'tx':
           const txMessage = tx.decodeTxMessage(msg.payload)
-          console.log(txMessage)
+          // console.log(txMessage)
+          this._updateTxs(txMessage)
           break
         default:
           console.log(msg.cmd)
@@ -193,6 +195,10 @@ class Peer extends EventEmitter {
   _onClose (response) {
     this.emit('closed')
     console.log('Closing: ' + response)
+  }
+
+  _updateTxs (txMessage) {
+    this.node.updateTxs(txMessage)
   }
 }
 
