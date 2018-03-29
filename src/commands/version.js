@@ -1,10 +1,10 @@
 const {write64, readI64, readU64} = require('../utils/write64')
 const binet = require('exp-net')
 const CompactSize = require('../utils/compactSize')
+const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
 
 const NODE_IP = '163.172.182.246'
 const NODE_PORT = 44556
-const PROTOCOL_VERSION = 70004
 
 function versionMessage () {
   const buffer = new Buffer.alloc(86)
@@ -27,7 +27,7 @@ function versionMessage () {
     agent: 0,
     nonce: 0,
     height: 0,
-    relay: true
+    relay: false
   }
 
   offset = buffer.writeInt32LE(payload.version, offset, true)

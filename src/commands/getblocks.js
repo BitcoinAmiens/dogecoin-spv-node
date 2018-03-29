@@ -3,7 +3,7 @@ const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
 
 // https://bitcoin.org/en/developer-reference#getblocks
 // getHeaders is similar to getBlock
-function encodeGetheadersMessage () {
+function encodeGetblocksMessage () {
   // For the sake of the demo
   // But those need to be parameters
   var hashCount = 1
@@ -37,4 +37,4 @@ function encodeGetheadersMessage () {
   return buffer
 }
 
-module.exports = { encodeGetheadersMessage }
+module.exports = { encodeGetblocksMessage }
