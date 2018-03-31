@@ -4,7 +4,7 @@ var BloomFilter = require('bloom-filter')
 const constants = require('./constants')
 var { ADDRESSES } = require('../walletAddresses')
 
-const NODE_IP = '192.168.50.4'
+const NODE_IP = '127.0.0.1'
 const NODE_PORT = 18444
 
 class SPVNode {
@@ -12,7 +12,9 @@ class SPVNode {
     this.peers = []
     this.balance = 0
     this.height = 0
+    this.bestHeight = 0
     this.txs = []
+    this.headers = []
     this.db = level(__dirname + '/db')
   }
 
@@ -33,9 +35,8 @@ class SPVNode {
 
       //
       peer.sendFilterLoad(filter).then(() => {
-        // peer.sendGetHeader()
+        peer.sendGetHeader()
         peer.sendGetBlocks()
-        // peer.sendGetData()
       })
     })
       .catch((error) => {
@@ -68,6 +69,22 @@ class SPVNode {
 
   updateHeight (newHeight) {
     this.height = newHeight
+  }
+
+  updateHeaders (headers) {
+    console.log(headers.length)
+    this.headers = this.headers.concat(headers)
+    console.log(this.headers.length)
+    this.updateHeight(this.headers.length)
+
+    console.log('Headers updated, new height :', this.height)
+
+    for (var peer of this.peers) {
+      if (peer.bestHeight > this.height) {
+        peer.sendGetHeader(this.headers[this.height - 1].previousHash)
+        break
+      }
+    }
   }
 }
 

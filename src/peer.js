@@ -13,6 +13,8 @@ var block = require('./commands/block')
 var merkleblock = require('./commands/merkleblock')
 var tx = require('./commands/tx')
 
+const { GENESIS_BLOCK_HASH } = require('./constants')
+
 class Peer extends EventEmitter {
   constructor (ip, port, node) {
     super()
@@ -29,6 +31,7 @@ class Peer extends EventEmitter {
     this.verack = false
     this.closed = false
     this.incompleteData
+    this.bestHeight = 0
 
     this.socket.on('data', this._onData.bind(this))
     this.socket.on('close', this._onClose.bind(this))
@@ -82,7 +85,7 @@ class Peer extends EventEmitter {
       switch (msg.cmd) {
         case 'version':
           const versionMessage = version.decodeVersionMessage(msg.payload)
-          this._sendVerackMessage()
+          this._handleVersionMessage(versionMessage)
           break
         case 'verack':
           this.verack = true
@@ -94,11 +97,12 @@ class Peer extends EventEmitter {
         case 'inv':
           const invMessage = inv.decodeInvMessage(msg.payload)
           var payload = inv.encodeInvMessage(invMessage)
+          console.log(invMessage)
           this.sendGetData(payload)
           break
         case 'headers':
           const headersMessage = headers.decodeHeadersMessage(msg.payload)
-          // console.log(headersMessage)
+          this._updateHeaders(headersMessage)
           break
         case 'reject':
           const rejectMessage = reject.decodeRejectMessage(msg.payload)
@@ -147,8 +151,9 @@ class Peer extends EventEmitter {
     })
   }
 
-  sendGetHeader () {
-    var payload = getheaders.encodeGetheadersMessage()
+  sendGetHeader (blockHash = GENESIS_BLOCK_HASH) {
+    console.log(blockHash)
+    var payload = getheaders.encodeGetheadersMessage(blockHash)
     const getHeadersMessage = packet.preparePacket('getheaders', payload)
     this.socket.write(getHeadersMessage, function (err) {
       if (err) {
@@ -159,8 +164,8 @@ class Peer extends EventEmitter {
     })
   }
 
-  sendGetBlocks () {
-    var payload = getblocks.encodeGetblocksMessage()
+  sendGetBlocks (blockHash = GENESIS_BLOCK_HASH) {
+    var payload = getblocks.encodeGetblocksMessage(blockHash)
     const getBlocksMessage = packet.preparePacket('getblocks', payload)
     this.socket.write(getBlocksMessage, function (err) {
       if (err) {
@@ -199,6 +204,16 @@ class Peer extends EventEmitter {
 
   _updateTxs (txMessage) {
     this.node.updateTxs(txMessage)
+  }
+
+  _updateHeaders (headersMessage) {
+    console.log(headersMessage.headers[0])
+    this.node.updateHeaders(headersMessage.headers)
+  }
+
+  _handleVersionMessage (versionMessage) {
+    this.bestHeight = versionMessage.height
+    this._sendVerackMessage()
   }
 }
 

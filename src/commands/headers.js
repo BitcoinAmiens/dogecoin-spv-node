@@ -21,11 +21,7 @@ function decodeHeadersMessage (payload) {
 
     // console.log(previousHash.toString('hex'))
 
-    var previousHashHex = ''
-    for (var j = 31; j >=0; j--) {
-      previousHashHex += previousHash.slice(j, j+1).toString('hex')
-    }
-    header.previousHash = previousHashHex
+    header.previousHash = payload.slice(offset, offset + 32).toString('hex')
     offset += 32
 
     var merklerootHash = payload.slice(offset, offset + 32)
