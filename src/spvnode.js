@@ -1,52 +1,165 @@
 var Peer = require('./peer')
 var level = require('level')
+var sublevel = require('level-sublevel')
 var BloomFilter = require('bloom-filter')
+const dns = require('dns')
 const constants = require('./constants')
+const pubkeyToAddress = require('./utils/pubkeyToAddress')
 var { ADDRESSES } = require('../walletAddresses')
-
-const NODE_IP = '127.0.0.1'
-const NODE_PORT = 18444
 
 class SPVNode {
   constructor () {
+    var db = sublevel(level(__dirname + '/../db', {valueEncoding: 'json'}))
+
     this.peers = []
     this.balance = 0
     this.height = 0
+    this.hash = null
     this.bestHeight = 0
-    this.txs = []
-    this.headers = []
-    this.db = level(__dirname + '/db')
+    this.txs = db.sublevel('txs')
+    this.headers = db.sublevel('headers')
+    this.wallet = db.sublevel('wallet')
+    this.blocks = db.sublevel('blocks')
+    this.tips = new Map()
+
+
+    if (process.env.NETWORK === 'testnet') {
+      console.log('We are on TESTNET !')
+    }
   }
 
-  start () {
-    var peer = new Peer(NODE_IP, NODE_PORT, this)
-    this.peers.push(peer)
+  async start () {
 
-    peer.connect().then(() => {
-      // Prepare filter here
-      var filter = BloomFilter.create(ADDRESSES.length, 0.001)
-      for (var index in ADDRESSES) {
-        var bufferAddress = new Buffer(ADDRESSES[index])
-        filter.insert(bufferAddress)
-      }
+    await this.headers.get('height', (err, value) => {
+      if (err) return
+      console.log('Current height :', value)
 
-      // We want the filter to autoupdate
-      filter.nFlags = 1
+      this.height = value.height
+      this.hash = value.hash
+    })
 
-      //
-      peer.sendFilterLoad(filter).then(() => {
-        peer.sendGetHeader()
-        peer.sendGetBlocks()
+    // DNS peer
+    console.log('==== Starting spvnode ====')
+    if (process.env.NETWORK === 'testnet') {
+      console.log('Resolving DNS seed')
+      var promises = []
+      constants.DNS_SEED.forEach((host) => {
+        let promise = new Promise((resolve, reject) => {
+          this._getDnsSeed(host)
+          .then((result) => {
+            result.forEach((ip) => {
+              console.log(' Attempt connection with ', ip)
+              this.addPeer(ip, constants.DEFAULT_PORT)
+                .then(function () {
+                  console.log('Peer ' + ip + ' added !' )
+                  resolve()
+                })
+                .catch(function (err) {
+                  console.log(err)
+                  reject()
+                })
+            })
+          })
+          .catch(function (err) {
+            console.log(err)
+            reject(err)
+          })
+        })
+        promises.push(promise)
+      })
+      // Once we are connected to one we can start doing stuff
+      return Promise.race(promises)
+    }
+    return new Promise((resolve, reject) => {
+      this.headers.get('height', (err, value) => {
+        if (err) throw err
+
+        this.height = value
+        resolve()
       })
     })
-      .catch((error) => {
-        console.log(error)
+  }
+
+  _getDnsSeed (host) {
+    return new Promise(function (resolve, reject) {
+      dns.resolve(host, 'A', (err, result) => {
+        if (err) {
+          reject(err)
+          return
+        }
+
+        if (result.length === 0) {
+          reject(new Error('No DNS results.'))
+          return
+        }
+        resolve(result)
       })
+    })
+  }
+
+  synchronize () {
+    console.log('==== Starting synchronizing ====')
+    if (this.peers.length <= 0) {
+      console.error(new Error('No peers.'))
+    }
+    // Choose a random peer to getHeaders
+    let rand = Math.floor(Math.random() * this.peers.length)
+    let peer = this.peers[rand]
+
+    if (this.hash) {
+      peer.sendGetHeader([this.hash])
+    } else {
+      peer.sendGetHeader()
+    }
+
+  }
+
+  addPeer (ip, port) {
+    var peer = new Peer(ip, port, this)
+
+    return new Promise((resolve, reject) => {
+      peer.connect()
+        .then(() => {
+
+          // Prepare filter here
+          var filter = BloomFilter.create(ADDRESSES.length, 0.001)
+          for (var index in ADDRESSES) {
+            var bufferAddress = Buffer.from(ADDRESSES[index], 'hex')
+            filter.insert(bufferAddress)
+          }
+
+          // We want the filter to autoupdate
+          filter.nFlags = 1
+
+          this.peers.push(peer)
+
+          if (peer.bestHeight > this.bestHeight) {
+            this.bestHeight = peer.bestHeight
+          }
+
+          //
+          peer.sendFilterLoad(filter).then(() => {
+            //peer.sendGetHeader()
+            //peer.sendGetBlocks()
+            resolve()
+          })
+          .catch((err) => {
+            console.log(err)
+            reject(err)
+          })
+        })
+        .catch((error) => {
+          console.log(error)
+          reject(error)
+        })
+    })
   }
 
   updateBalance (newBalance) {
     this.balance += newBalance
-    console.log('Update balance :', this.balance / constants.SATOSHIS)
+    this.wallet.put('balance', this.balance, (err) => {
+      console.log('Update balance :', this.balance / constants.SATOSHIS)
+    })
   }
 
   updateTxs (newTx) {
@@ -59,33 +172,259 @@ class SPVNode {
 
     // TODO: need to verify if address belongs to wallet
     // And we actually need txOuts records not txs stupid (:heart:)
-    this.txs.push(newTx)
-
-    // Update balance now
     newTx.txOuts.forEach((txOut) => {
+      // We should have a switch here
+      let firstByte = txOut.pkScript.slice(0, 1).toString('hex')
+      let address
+
+      switch (firstByte) {
+        case '21':
+          // 210394224e8ef33207eb3da52b7e91fb7560a4b7dd2b2d024c0a0b84e7cac8dc1ae3ac
+          let pubkey = txOut.pkScript.slice(1, 34)
+          address = pubkeyToAddress(pubkey)
+
+          if (txOut.pkScript.toString('hex') === '210371f67abd24eb04e5fa7d8a7c05ea13fec12f5371c2d3fd3ac287b22cb3a5758eac') {
+            console.log(address)
+            console.log('OUR TX')
+          }
+
+          break
+
+        case '76':
+          let pubkeyHash = txOut.pkScript.slice(3, 23)
+          address = pubkeyToAddress(pubkeyHash, true)
+          break
+
+        default:
+          //console.log('unknown script')
+      }
+
+      if (ADDRESSES.indexOf(address)<0) {
+
+        // Not in our wallet (false positive)
+        return
+      }
+
+      this.txs.push(newTx)
+
       this.updateBalance(txOut.value)
     })
   }
 
-  updateHeight (newHeight) {
+  updateHeight (newHeight, hash) {
     this.height = newHeight
+    this.hash = hash
+
+    this.updateHeightInDb(this.height, this.hash)
   }
 
-  updateHeaders (headers) {
-    console.log(headers.length)
-    this.headers = this.headers.concat(headers)
-    console.log(this.headers.length)
-    this.updateHeight(this.headers.length)
+  updateHeightInDb (newHeight, hash) {
+    this.headers.put('height', { height: newHeight, hash}, (err) => {
+      if (err) throw err
+    })
+  }
 
-    console.log('Headers updated, new height :', this.height)
+  async updateHeaders (headersMessage) {
+    let ops = []
+    let headers = headersMessage.headers
+    let newBestHeight = this.height
+    let pastHeaders = new Map()
 
-    for (var peer of this.peers) {
-      if (peer.bestHeight > this.height) {
-        peer.sendGetHeader(this.headers[this.height - 1].previousHash)
-        break
+    if (!headersMessage.count) {
+      // if the message is empty nothing to update here
+
+      // We still need to get the blocks
+      // Choose a random peer to getBlocks
+      let rand = Math.floor(Math.random() * this.peers.length)
+      let peer = this.peers[rand]
+
+      peer.sendGetBlocks()
+
+      return
+    }
+
+    // Prepapre batch request
+    //headers.forEach( (element, index, array) => {
+    for (let header of headers) {
+      let tip = this.tips.get(header.previousHash)
+
+      if (tip) {
+        header.height = tip.height + 1
+        if (newBestHeight < header.height) {
+          newBestHeight = header.height
+        }
+        this.tips.delete(header.previousHash)
+      } else {
+
+        // TODO: we need to load the db with the first header
+        // We need to verify if it doesnt exist in db
+        // or current batch of headers
+        header.height = 0
+
+        if (pastHeaders.has(header.previousHash)) {
+          // Should never happened because it is sending in order
+          header.height = pastHeaders.get(header.previousHash).height + 1
+        } else {
+
+          let promise = () => {
+            return new Promise((resolve, reject) => {
+              console.log('Looking into db')
+              this.headers.get(header.previousHash, function (err, value) {
+                if (err) {
+                  reject(err)
+                  return
+                }
+                resolve(value)
+              })
+            })
+          }
+
+          await promise()
+            .then((value) => {
+              header.height = value.height + 1
+              if (newBestHeight < header.height) {
+                newBestHeight = header.height
+              }
+            })
+            .catch((err) => {
+              // Just not found
+              if (header.previousHash === '9e555073d0c4f36456db8951f449704d544d2826d9aa60636b40374626780abb') {
+                // This is the block after the genesis block
+                header.height = 1
+                return
+              }
+            })
+        }
       }
+
+      if (header.height === 0) {
+        throw Error('We should not have orphan headers here damn it !')
+      }
+
+      // Keep chains tips
+      this.tips.set(header.hash, header)
+
+      if (this.tips.size > 1) {
+        console.log('We have a fork !')
+      }
+
+      // keep a map of headers
+      // Not sure we need it
+      // It is suppose to be in order
+      pastHeaders.set(header.hash, header)
+
+      ops.push({
+        key: header.hash,
+        value: header,
+        type: 'put'
+      })
+    }
+
+    this.headers.batch(ops, (err) => {
+      if (err) throw err
+
+      // Should keep a map of height --> hash
+      var iterator = this.tips.entries()
+      var value = iterator.next().value
+
+      if (value[1].height !== newBestHeight) {
+        throw Error('wrong hash for this height')
+      }
+
+      this.updateHeight(newBestHeight, value[0])
+
+      // Show pourcentage
+      console.log('Sync at ' + ((this.height/this.bestHeight)*100).toFixed(2)+ '%')
+
+      // TODO: randomize the selection of peers
+      for (var peer of this.peers) {
+        if (peer.bestHeight > this.height) {
+
+          let hashesNotSorted = []
+          let hashes = []
+          this.tips.forEach(function (value, key, map) {
+            if (value.height > 0) {
+              hashesNotSorted.push(value)
+            }
+          })
+
+          hashesNotSorted.sort(function (a, b) {
+            return b.height - a.height
+          })
+
+          hashesNotSorted.forEach(function (value) {
+            hashes.push(value.hash)
+          })
+
+          peer.sendGetHeader(hashes)
+          break
+        }
+      }
+    })
+  }
+
+  updateBlocks (newBlocks) {
+    // Choose a random peer to getBlocks
+    let rand = Math.floor(Math.random() * this.peers.length)
+    let peer = this.peers[rand]
+
+    var promises = []
+    newBlocks.map((newBlock) => {
+      // Not particurlarly fast a batch call would be more appropriate
+      var promise = new Promise((resolve, reject) => {
+        this.blocks.get(newBlock.hash, (err, value) => {
+          if (err) {
+            if (err.type == 'NotFoundError') {
+              this.blocks.put(newBlock.hash, newBlock, (err) => {
+                if (err) reject(err)
+
+                resolve()
+              })
+            } else {
+              reject(err)
+            }
+          }
+          resolve()
+        })
+      })
+      promises.push(promise)
+    })
+
+    Promise.all(promises)
+      .then(() => {
+        this.headers.get(newBlocks[newBlocks.length - 1].hash, (err, value) => {
+          if (err) {
+
+            // Reverse the buffer to look for the hash in testnet blockchain explorer
+            var hashReverse = ''
+            var hashBuffer = Buffer.from(newBlocks[newBlocks.length - 1].hash, 'hex')
+            for (var i=0; i < hashBuffer.length; i++) {
+              hashReverse = hashBuffer.slice(i, i+1).toString('hex') + hashReverse
+            }
+
+            // Receiving INV cmd from new block which I don't have the headers saved yet---
+            // throw err
+            return
+          }
+
+          if (value.height === this.bestHeight) {
+            return
+          }
+
+          console.log('Blocs synced at : ' + ((value.height/this.bestHeight)*100).toFixed(2)+ '%')
+          peer.sendGetBlocks([newBlocks[newBlocks.length - 1].hash])
+        })
+      }).catch((err) => {
+        throw err
+      })
+  }
+
+  removePeer (peer) {
+    if (this.peers.indexOf(peer) >= 0) {
+      console.log('Slice Peer :', this.peers.indexOf(peer))
     }
   }
+
 }
 
 module.exports = SPVNode

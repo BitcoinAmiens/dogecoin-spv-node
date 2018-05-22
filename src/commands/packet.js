@@ -36,6 +36,11 @@ function decodePacket (packet) {
   let packets = []
   let offset = 0
 
+  if (packet.length < 4) {
+    // console.log('Incorrect packet ' + packet.toString('hex'))
+    return false
+  }
+
   let magicBytes = packet.readUInt32LE(offset)
 
   // Be sure we are on the same network and same protocol

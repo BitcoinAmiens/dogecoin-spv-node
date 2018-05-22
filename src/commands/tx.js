@@ -27,13 +27,24 @@ function decodeTxMessage (payload) {
     offset += 4
 
     if (txIn.previousOutput.hash === '0000000000000000000000000000000000000000000000000000000000000000') {
+      // Coinbase txIn !!!!!!!!
       compactSize = CompactSize.fromBuffer(payload, offset)
       offset += compactSize.offset
 
       txIn.script = payload.slice(offset, offset + compactSize.size).toString('hex')
       offset += compactSize.size
 
-      txIn.sequence = payload.readUInt32BE(offset)
+      txIn.sequence = payload.readUInt32LE(offset)
+      offset += 4
+    } else {
+      // NOT Coinbase txIn !!!!!!!!
+      compactSize = CompactSize.fromBuffer(payload, offset)
+      offset += compactSize.offset
+
+      txIn.signature = payload.slice(offset, offset + compactSize.size).toString('hex')
+      offset += compactSize.size
+
+      txIn.sequence = payload.readUInt32LE(offset)
       offset += 4
     }
 

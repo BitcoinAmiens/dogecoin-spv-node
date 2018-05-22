@@ -8,8 +8,6 @@ function decodeInvMessage (data) {
   var count = compactSize.size
   var offset = compactSize.offset
 
-  console.log(count)
-
   var inventories = []
   for (var i = 0; i < count; i++) {
     var type = data.slice(offset, offset + 4)

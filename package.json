@@ -8,6 +8,9 @@
     "bloom": "nodemon src/utils/bloom.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "nodemonConfig": {
+    "ignore": ["test/*"]
+  },
   "keywords": [
     "dogecoin",
     "spv",
@@ -24,6 +27,8 @@
     "bs58check": "^2.1.1",
     "exp-net": "0.0.1",
     "level": "^3.0.0",
+    "level-sublevel": "^6.6.2",
+    "multicast-dns": "^7.0.0",
     "ripemd160": "^2.0.1"
   }
 }
