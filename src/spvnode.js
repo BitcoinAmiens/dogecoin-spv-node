@@ -2,9 +2,11 @@ var Peer = require('./peer')
 var level = require('level')
 var sublevel = require('level-sublevel')
 var BloomFilter = require('bloom-filter')
+const bmp = require('bitcoin-merkle-proof')
 const dns = require('dns')
 const constants = require('./constants')
 const pubkeyToAddress = require('./utils/pubkeyToAddress')
+const doubleHash = require('./utils/doubleHash')
 var { ADDRESSES } = require('../walletAddresses')
 
 class SPVNode {
@@ -16,8 +18,13 @@ class SPVNode {
     this.height = 0
     this.hash = null
     this.bestHeight = 0
-    this.txs = db.sublevel('txs')
+    // this.txs = db.sublevel('txs')
+    this.txs = []
+    this.filter = []
+    this.merkle
+    //this.merkles = db.sublevel('merkles')
     this.headers = db.sublevel('headers')
+    this.heighs = db.sublevel('heights')
     this.wallet = db.sublevel('wallet')
     this.blocks = db.sublevel('blocks')
     this.tips = new Map()
@@ -167,6 +174,7 @@ class SPVNode {
     // If not added it txs array
     // else do nothing
     if (this.txs.indexOf(newTx) >= 0) {
+
       return
     }
 
@@ -179,15 +187,8 @@ class SPVNode {
 
       switch (firstByte) {
         case '21':
-          // 210394224e8ef33207eb3da52b7e91fb7560a4b7dd2b2d024c0a0b84e7cac8dc1ae3ac
           let pubkey = txOut.pkScript.slice(1, 34)
           address = pubkeyToAddress(pubkey)
-
-          if (txOut.pkScript.toString('hex') === '210371f67abd24eb04e5fa7d8a7c05ea13fec12f5371c2d3fd3ac287b22cb3a5758eac') {
-            console.log(address)
-            console.log('OUR TX')
-          }
-
           break
 
         case '76':
@@ -205,7 +206,9 @@ class SPVNode {
         return
       }
 
-      this.txs.push(newTx)
+      console.log(newTx)
+
+      // this.txs.put()
 
       this.updateBalance(txOut.value)
     })
@@ -238,6 +241,10 @@ class SPVNode {
       let rand = Math.floor(Math.random() * this.peers.length)
       let peer = this.peers[rand]
 
+      console.log('We got all of them')
+
+      // Need getBlocks because we cannot ask directly using the hedaers. We are
+      // not sure of what the full node has or if has been pruned ?
       peer.sendGetBlocks()
 
       return
@@ -336,6 +343,8 @@ class SPVNode {
       // Show pourcentage
       console.log('Sync at ' + ((this.height/this.bestHeight)*100).toFixed(2)+ '%')
 
+      var finishSyncHeader = true
+
       // TODO: randomize the selection of peers
       for (var peer of this.peers) {
         if (peer.bestHeight > this.height) {
@@ -356,10 +365,24 @@ class SPVNode {
             hashes.push(value.hash)
           })
 
+          finishSyncHeader = false
+
           peer.sendGetHeader(hashes)
           break
         }
       }
+
+      // If no more headers we can start asking for the rest
+      if (finishSyncHeader) {
+        let rand = Math.floor(Math.random() * this.peers.length)
+        let peer = this.peers[rand]
+
+        // Need getBlocks because we cannot ask directly using the hedaers. We are
+        // not sure of what the full node has or if has been pruned ?
+        peer.sendGetBlocks()
+
+      }
+
     })
   }
 
@@ -417,6 +440,36 @@ class SPVNode {
       }).catch((err) => {
         throw err
       })
+  }
+
+  updateMerkleBlock (merkleblockMessage) {
+    var hash = doubleHash(Buffer.from(merkleblockMessage.blockHeader, 'hex'))
+
+    this.headers.get(hash.toString('hex'), (err, value) => {
+      if (err) {
+        // Send you not yet registered merkle block... but we don't have the header yet
+        // console.log(hash)
+        // console.log('Unknown header...')
+        return
+      }
+
+      let flags = []
+
+      for (var i=0; i<merkleblockMessage.flagBytes; i++) {
+        flags.push(merkleblockMessage.flags.slice(i, i+1).readUInt8())
+      }
+
+      var merkle = {
+        flags,
+        hashes: merkleblockMessage.hashes,
+        numTransactions: merkleblockMessage.transactionCount,
+        merkleRoot: Buffer.from(value.merklerootHash, 'hex')
+      }
+
+      var result = bmp.verify(merkle)
+    })
+
+    this.merkle = merkleblockMessage
   }
 
   removePeer (peer) {

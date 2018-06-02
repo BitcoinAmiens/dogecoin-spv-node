@@ -1,10 +1,14 @@
 const CompactSize = require('../utils/compactSize')
 const { readU64 } = require('../utils/write64')
+const doubleHash = require('../utils/doubleHash')
+const crypto = require('crypto')
 
 // TODO : Same code than for block !!!!
 function decodeTxMessage (payload) {
   var tx = {}
   let offset = 0
+
+  tx.id = doubleHash(payload).toString('hex')
 
   tx.version = payload.readUInt32LE(offset)
   offset += 4

@@ -127,7 +127,7 @@ class Peer extends EventEmitter {
           break
         case 'merkleblock':
           const merkleblockMessage = merkleblock.decodeMerkleblockMessage(msg.payload)
-          // console.log(merkleblockMessage)
+          this._handleMerkleblock(merkleblockMessage)
           break
         case 'tx':
           const txMessage = tx.decodeTxMessage(msg.payload)
@@ -237,6 +237,11 @@ class Peer extends EventEmitter {
 
   _updateBlocks (newBlocks) {
     this.node.updateBlocks(newBlocks)
+  }
+
+  _handleMerkleblock (merkleblockMessage) {
+
+    this.node.updateMerkleBlock(merkleblockMessage)
   }
 }
 

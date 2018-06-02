@@ -4,7 +4,7 @@ function decodeMerkleblockMessage (payload) {
   var merkleblock = {}
   let offset = 0
 
-  merkleblock.blockHeader = payload.slice(offset, offset + 80).toString('hex')
+  merkleblock.blockHeader = payload.slice(offset, offset + 80)
   offset += 80
 
   merkleblock.transactionCount = payload.readUInt32LE(offset)
@@ -17,7 +17,7 @@ function decodeMerkleblockMessage (payload) {
 
   merkleblock.hashes = []
   for (var i = 0; i < merkleblock.hashCount; i++) {
-    var hash = payload.slice(offset, offset + 32).toString('hex')
+    var hash = payload.slice(offset, offset + 32)
     offset += 32
 
     merkleblock.hashes.push(hash)
@@ -27,7 +27,7 @@ function decodeMerkleblockMessage (payload) {
   offset += compactSize.offset
 
   merkleblock.flagBytes = compactSize.size
-  merkleblock.flag = payload.slice(offset, offset + merkleblock.flagBytes).toString('hex')
+  merkleblock.flags = payload.slice(offset, offset + merkleblock.flagBytes)
 
   return merkleblock
 }

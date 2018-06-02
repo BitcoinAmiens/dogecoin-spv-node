@@ -1,6 +1,6 @@
 const CompactSize = require('../utils/compactSize')
 const { readU64 } = require('../utils/write64')
-const crypto = require('crypto')
+const doubleHash = require('../utils/doubleHash')
 const fs = require('fs')
 
 function decodeHeadersMessage (payload) {
@@ -37,13 +37,7 @@ function decodeHeadersMessage (payload) {
       throw Error('PREVIOUS HASH SHOULD NOT BE NULL')
     }
 
-    var merklerootHash = payload.slice(offset, offset + 32)
-
-    var merklerootHashHex = ''
-    for ( var j = 31; j >=0; j-- ) {
-      merklerootHashHex += merklerootHash.slice(j, j+1).toString('hex')
-    }
-    header.merklerootHash = merklerootHashHex
+    header.merklerootHash = payload.slice(offset, offset + 32).toString('hex')
     offset += 32
 
     header.time = payload.readUInt32LE(offset)
@@ -56,8 +50,7 @@ function decodeHeadersMessage (payload) {
     offset += 4
 
 
-    header.hash = crypto.createHash('sha256').update(payload.slice(offset - 80, offset)).digest()
-    header.hash = crypto.createHash('sha256').update(header.hash).digest().toString('hex')
+    header.hash = doubleHash(payload.slice(offset - 80, offset)).toString('hex')
 
     // Should be always 0x00
     // https://bitcoin.org/en/developer-reference#headers

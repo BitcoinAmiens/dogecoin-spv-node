@@ -9,7 +9,9 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "nodemonConfig": {
-    "ignore": ["test/*"]
+    "ignore": [
+      "test/*"
+    ]
   },
   "keywords": [
     "dogecoin",
@@ -22,6 +24,7 @@
     "nodemon": "^1.14.8"
   },
   "dependencies": {
+    "bitcoin-merkle-proof": "^0.1.0",
     "bloom-filter": "^0.2.0",
     "bs58": "^4.0.1",
     "bs58check": "^2.1.1",
