@@ -23,3 +23,9 @@ console.log(result)
 
 // Passed
 console.log(result === 'nXoKWTPsRzSQDM6sTd2P2bc5gtgYB1xL1H')
+
+var p2shScript = Buffer.from('a91401d4df05a673fc46698c4d2effdac931d760025287','hex')
+var redeemScriptHash = p2shScript.slice(2, 22)
+address = pubkeyToAddress(redeemScriptHash, true, true)
+// Passed
+console.log(address)

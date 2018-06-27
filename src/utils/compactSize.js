@@ -29,12 +29,8 @@ class CompactSize {
         this.offset += 8
         break
       default:
-        try {
-          this.size = firstByte.readUInt8(0)
-        } catch (err) {
-          console.log(firstByte)
-          throw err
-        }
+        this.size = firstByte.readUInt8(0)
+
     }
 
     this.offset = this.offset - offset

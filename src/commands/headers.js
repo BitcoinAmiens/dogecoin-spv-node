@@ -31,9 +31,6 @@ function decodeHeadersMessage (payload) {
     if (header.previousHash === '0000000000000000000000000000000000000000000000000000000000000000') {
       // fs.writeFileSync('test/headers/data3.json', JSON.stringify(data))
 
-      console.log(headers.headers[headers.headers.length - 1])
-      console.log(header)
-
       throw Error('PREVIOUS HASH SHOULD NOT BE NULL')
     }
 
@@ -94,15 +91,8 @@ function decodeHeadersMessage (payload) {
         txIn.script = payload.slice(offset, offset + compactSize.size).toString('hex')
         offset += compactSize.size
 
-        try {
-          txIn.sequence = payload.readUInt32LE(offset)
-          offset += 4
-        } catch (err) {
-          console.log(txIn)
-          throw err
-        }
-
-
+        txIn.sequence = payload.readUInt32LE(offset)
+        offset += 4
 
         parentBlock.txIns.push(txIn)
       }
@@ -124,11 +114,6 @@ function decodeHeadersMessage (payload) {
           compactSize = CompactSize.fromBuffer(payload, offset)
           offset += compactSize.offset
         } catch (err) {
-          console.log(headers.headers[headers.headers.length - 1])
-          console.log(header)
-          console.log(txOut)
-          console.log(parentBlock)
-          // console.log(payload.toString('hex'))
           throw err
         }
 

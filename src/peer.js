@@ -1,10 +1,12 @@
 var net = require('net')
 var EventEmitter = require('events')
+var debug = require('debug')('peer')
 
 var packet = require('./commands/packet')
 var version = require('./commands/version')
 var inv = require('./commands/inv')
 var filterload = require('./commands/filterload')
+var filteradd = require('./commands/filteradd')
 var getheaders = require('./commands/getheaders')
 var headers = require('./commands/headers')
 var getblocks = require('./commands/getblocks')
@@ -78,7 +80,6 @@ class Peer extends EventEmitter {
   }
 
   _onData (data) {
-
     if (this.incompleteData) {
       data = Buffer.concat([this.incompleteData, data], this.incompleteData.length + data.length)
       this.incompleteData = null
@@ -140,7 +141,7 @@ class Peer extends EventEmitter {
   }
 
   sendAddr () {
-
+    // Not needed... We don't need node to connect to us ?
   }
 
   sendGetAddr () {
@@ -174,6 +175,8 @@ class Peer extends EventEmitter {
   }
 
   sendGetBlocks (blockHash = [GENESIS_BLOCK_HASH]) {
+    debug('peer n° %i getblocks', this.id)
+    debug('Asked for :', blockHash)
     var payload = getblocks.encodeGetblocksMessage(blockHash)
     const getBlocksMessage = packet.preparePacket('getblocks', payload)
     this.socket.write(getBlocksMessage, function (err) {
@@ -185,12 +188,28 @@ class Peer extends EventEmitter {
   }
 
   sendGetData (inv) {
+    debug('peer n° %i getdata', this.id)
     var getDataMessage = packet.preparePacket('getdata', inv)
     this.socket.write(getDataMessage, function (err) {
       if (err) {
         console.error(err)
         return
       }
+    })
+  }
+
+  sendFilterAdd (element) {
+    // TODO: using 'filteradd' has big privacy issues !
+    var payload = filteradd.encodeFilterAdd(Buffer.from(element, 'hex'))
+    const filteraddMessage = packet.preparePacket('filteradd', payload)
+    return new Promise((resolve, reject) => {
+      this.socket.write(filteraddMessage, function (err) {
+        if (err) {
+          reject(err)
+          return
+        }
+        resolve()
+      })
     })
   }
 
@@ -229,6 +248,12 @@ class Peer extends EventEmitter {
   }
 
   _handleInvMessage (invMessage) {
+
+    // It just notified us of a new bock. For now we dont care
+    if (invMessage.count === 1) return
+
+    debug('Peer n° %s received inv message', this.id)
+
     var payload = inv.encodeInvMessage(invMessage)
 
     this._updateBlocks(invMessage.inventory)
@@ -240,7 +265,6 @@ class Peer extends EventEmitter {
   }
 
   _handleMerkleblock (merkleblockMessage) {
-
     this.node.updateMerkleBlock(merkleblockMessage)
   }
 }

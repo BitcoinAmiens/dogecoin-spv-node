@@ -1,61 +1,89 @@
 var Peer = require('./peer')
+var debug = require('debug')('spvnode')
 var level = require('level')
 var sublevel = require('level-sublevel')
 var BloomFilter = require('bloom-filter')
+var EventEmitter = require('events')
+
 const bmp = require('bitcoin-merkle-proof')
 const dns = require('dns')
 const constants = require('./constants')
 const pubkeyToAddress = require('./utils/pubkeyToAddress')
 const doubleHash = require('./utils/doubleHash')
+
+// TODO: move this to main
 var { ADDRESSES } = require('../walletAddresses')
 
-class SPVNode {
+class SPVNode extends EventEmitter {
   constructor () {
+    super()
+
     var db = sublevel(level(__dirname + '/../db', {valueEncoding: 'json'}))
 
     this.peers = []
     this.balance = 0
+    this.totalSpent = 0
     this.height = 0
     this.hash = null
     this.bestHeight = 0
-    // this.txs = db.sublevel('txs')
-    this.txs = []
-    this.filter = []
-    this.merkle
-    //this.merkles = db.sublevel('merkles')
+    this.txs = db.sublevel('txs')
+    this.txids = []
+    this.txInsCounter = 0
+    this.filter
     this.headers = db.sublevel('headers')
-    this.heighs = db.sublevel('heights')
+    this.merkles = db.sublevel('merkles')
     this.wallet = db.sublevel('wallet')
-    this.blocks = db.sublevel('blocks')
     this.tips = new Map()
 
+    this.totalTxs = 0
+
+    // Prepare filter here
+    this.filter = BloomFilter.create(ADDRESSES.length, 0.001)
+    for (var address of ADDRESSES) {
+      var bufferAddress = Buffer.from(address, 'utf8')
+      this.filter.insert(bufferAddress)
+    }
+
+    // We want the filter to autoupdate
+    this.filter.nFlags = 1
 
     if (process.env.NETWORK === 'testnet') {
-      console.log('We are on TESTNET !')
+      debug('We are on TESTNET !')
     }
   }
 
   async start () {
 
     await this.headers.get('height', (err, value) => {
-      if (err) return
-      console.log('Current height :', value)
+      if (err && err.type !== 'NotFoundError') throw err
+      if (err && err.type === 'NotFoundError') return
 
       this.height = value.height
       this.hash = value.hash
     })
 
+    await this.wallet.get('balance', (err, value) => {
+      if (err && err.type !== 'NotFoundError') throw err
+      if (err && err.type === 'NotFoundError') return
+
+      this.balance = value
+    })
+
     // DNS peer
     console.log('==== Starting spvnode ====')
     if (process.env.NETWORK === 'testnet') {
-      console.log('Resolving DNS seed')
+      debug('Resolving DNS seed')
       var promises = []
       constants.DNS_SEED.forEach((host) => {
         let promise = new Promise((resolve, reject) => {
           this._getDnsSeed(host)
           .then((result) => {
             result.forEach((ip) => {
-              console.log(' Attempt connection with ', ip)
+              debug(' Attempt connection with ', ip)
+              // draglet slow node. Fuck that.
+              // TODO: proper bal list
+              if (ip === '85.214.213.86') return
+
               this.addPeer(ip, constants.DEFAULT_PORT)
                 .then(function () {
                   console.log('Peer ' + ip + ' added !' )
@@ -118,7 +146,6 @@ class SPVNode {
     } else {
       peer.sendGetHeader()
     }
-
   }
 
   addPeer (ip, port) {
@@ -128,26 +155,14 @@ class SPVNode {
       peer.connect()
         .then(() => {
 
-          // Prepare filter here
-          var filter = BloomFilter.create(ADDRESSES.length, 0.001)
-          for (var index in ADDRESSES) {
-            var bufferAddress = Buffer.from(ADDRESSES[index], 'hex')
-            filter.insert(bufferAddress)
-          }
-
-          // We want the filter to autoupdate
-          filter.nFlags = 1
-
+          peer.id = this.peers.length
           this.peers.push(peer)
 
           if (peer.bestHeight > this.bestHeight) {
             this.bestHeight = peer.bestHeight
           }
 
-          //
-          peer.sendFilterLoad(filter).then(() => {
-            //peer.sendGetHeader()
-            //peer.sendGetBlocks()
+          peer.sendFilterLoad(this.filter).then(() => {
             resolve()
           })
           .catch((err) => {
@@ -163,54 +178,127 @@ class SPVNode {
   }
 
   updateBalance (newBalance) {
-    this.balance += newBalance
     this.wallet.put('balance', this.balance, (err) => {
-      console.log('Update balance :', this.balance / constants.SATOSHIS)
+      this.balance += newBalance
+      this.totalTxs++
+      this.emit('balanceUpdated', this.balance)
     })
   }
 
   updateTxs (newTx) {
-    // Verify if we already have this tx
-    // If not added it txs array
-    // else do nothing
-    if (this.txs.indexOf(newTx) >= 0) {
 
-      return
+      newTx.txIns.forEach((txIn) => {
+        let previousOutput = txIn.previousOutput.hash + txIn.previousOutput.index
+        // If coinbase txIn we don't care
+        if (txIn.previousOutput.hash === '0000000000000000000000000000000000000000000000000000000000000000') {
+          return
+        }
+
+        //debug('Looking for :', inv)
+        //debug('For index :', txIn.previousOutput.index)
+
+        this.txs.get(previousOutput, (err, txOut) => {
+          if (err && err.type !== 'NotFoundError') throw err
+
+          if (err && err.type == 'NotFoundError') {
+            //console.log('We havent found :', inv)
+            //throw new Error('We should have this one !')
+          }
+
+          let buf = Buffer.from(txIn.previousOutput.hash, 'hex')
+          let inv = ''
+          for (let i=0; i < buf.length; i++) {
+            inv = buf.slice(i, i+1).toString('hex') + inv
+          }
+
+          if (inv === '25658b224de64f52d4600688f38424cebc8b0c9102f43c7da6600a61b6f2be0e') {
+            console.log('Got it !')
+          }
+
+          // We already got it
+          if (txOut) {
+            console.log('We have found : ', inv)
+            this.txInsCounter++
+            //this.updateBalance(-txOut.value)
+            this.totalSpent  += txOut.value
+          }
+        })
+      })
+
+
+      // TODO: need to verify if address belongs to wallet
+      // And we actually need txOuts records not txs stupid (:heart:)
+      newTx.txOuts.forEach((txOut, index) => {
+
+        // We should have a switch here
+        let firstByte = txOut.pkScript.slice(0, 1).toString('hex')
+        let address
+
+        switch (firstByte) {
+          case '21':
+            let pubkey = txOut.pkScript.slice(1, 34)
+            address = pubkeyToAddress(pubkey)
+            break
+
+          case '76':
+            let pubkeyHash = txOut.pkScript.slice(3, 23)
+            address = pubkeyToAddress(pubkeyHash, true)
+            break
+
+          // P2SH !!!
+          case 'a9':
+            let redeemScriptHash = txOut.pkScript.slice(2, 22)
+            address = pubkeyToAddress(redeemScriptHash, true, true)
+            break
+
+          default:
+            //console.log('unknown script')
+        }
+
+        // TODO: we won't have ADDRESSES after
+        if (ADDRESSES.indexOf(address)<0) {
+          // Not in our wallet (false positive)
+          return
+        }
+
+        let indexBuffer = Buffer.allocUnsafe(4)
+        indexBuffer.writeInt32BE(index, 0)
+
+        let previousOutput = newTx.id + indexBuffer.toString('hex')
+
+        // Need to update filter for everyone
+        this.updateFilter(newTx.id)
+        this.txids.push(previousOutput)
+
+        this.txs.put(previousOutput, txOut, (err) => {
+          if (err) throw err
+
+          let buf = Buffer.from(newTx.id, 'hex')
+          let inv = ''
+          for (let i=0; i < buf.length; i++) {
+            inv = buf.slice(i, i+1).toString('hex') + inv
+          }
+
+          if (inv === '0e2bcd74e93c976db019ff506a4093356a4ad3f515e2918c8ff18b59891a543a') {
+            console.log('We have seen :', inv)
+          }
+
+          this.updateBalance(txOut.value)
+        })
+      })
+
+  }
+
+  updateFilter (element) {
+    let buf = Buffer.from(element, 'hex')
+    let inv = ''
+    for (let i=0; i < buf.length; i++) {
+      inv = buf.slice(i, i+1).toString('hex') + inv
     }
+    //debug('Filter updated with :', inv)
 
-    // TODO: need to verify if address belongs to wallet
-    // And we actually need txOuts records not txs stupid (:heart:)
-    newTx.txOuts.forEach((txOut) => {
-      // We should have a switch here
-      let firstByte = txOut.pkScript.slice(0, 1).toString('hex')
-      let address
-
-      switch (firstByte) {
-        case '21':
-          let pubkey = txOut.pkScript.slice(1, 34)
-          address = pubkeyToAddress(pubkey)
-          break
-
-        case '76':
-          let pubkeyHash = txOut.pkScript.slice(3, 23)
-          address = pubkeyToAddress(pubkeyHash, true)
-          break
-
-        default:
-          //console.log('unknown script')
-      }
-
-      if (ADDRESSES.indexOf(address)<0) {
-
-        // Not in our wallet (false positive)
-        return
-      }
-
-      console.log(newTx)
-
-      // this.txs.put()
-
-      this.updateBalance(txOut.value)
+    this.peers.forEach(function (peer) {
+      peer.sendFilterAdd(element)
     })
   }
 
@@ -241,11 +329,17 @@ class SPVNode {
       let rand = Math.floor(Math.random() * this.peers.length)
       let peer = this.peers[rand]
 
-      console.log('We got all of them')
+      this.merkles.get('height', (err, value) => {
+        if (err) throw err
 
-      // Need getBlocks because we cannot ask directly using the hedaers. We are
-      // not sure of what the full node has or if has been pruned ?
-      peer.sendGetBlocks()
+        if (value.height < this.bestHeight) {
+          // Need getBlocks because we cannot ask directly using the hedaers. We are
+          // not sure of what the full node has or if has been pruned ?
+          peer.sendGetBlocks([value.hash])
+          return
+        }
+        this.emit('synchronized')
+      })
 
       return
     }
@@ -275,7 +369,6 @@ class SPVNode {
 
           let promise = () => {
             return new Promise((resolve, reject) => {
-              console.log('Looking into db')
               this.headers.get(header.previousHash, function (err, value) {
                 if (err) {
                   reject(err)
@@ -341,7 +434,7 @@ class SPVNode {
       this.updateHeight(newBestHeight, value[0])
 
       // Show pourcentage
-      console.log('Sync at ' + ((this.height/this.bestHeight)*100).toFixed(2)+ '%')
+      debug('Sync at ' + ((this.height/this.bestHeight)*100).toFixed(2)+ '%')
 
       var finishSyncHeader = true
 
@@ -377,10 +470,26 @@ class SPVNode {
         let rand = Math.floor(Math.random() * this.peers.length)
         let peer = this.peers[rand]
 
-        // Need getBlocks because we cannot ask directly using the hedaers. We are
-        // not sure of what the full node has or if has been pruned ?
-        peer.sendGetBlocks()
+        this.merkles.get('height', (err, value) => {
+          if (err && err.type !== 'NotFoundError') throw err
 
+          if (err && err.type === 'NotFoundError') {
+            value = {
+              height: 0,
+              hash: '9e555073d0c4f36456db8951f449704d544d2826d9aa60636b40374626780abb'
+            }
+          }
+
+          if (value.height < this.bestHeight) {
+            // Need getBlocks because we cannot ask directly using the hedaers. We are
+            // not sure of what the full node has or if has been pruned ?
+            peer.sendGetBlocks([value.hash])
+            return
+          }
+
+          this.emit('synchronized')
+
+        })
       }
 
     })
@@ -391,59 +500,31 @@ class SPVNode {
     let rand = Math.floor(Math.random() * this.peers.length)
     let peer = this.peers[rand]
 
-    var promises = []
-    newBlocks.map((newBlock) => {
-      // Not particurlarly fast a batch call would be more appropriate
-      var promise = new Promise((resolve, reject) => {
-        this.blocks.get(newBlock.hash, (err, value) => {
-          if (err) {
-            if (err.type == 'NotFoundError') {
-              this.blocks.put(newBlock.hash, newBlock, (err) => {
-                if (err) reject(err)
+    this.headers.get(newBlocks[newBlocks.length - 1].hash, (err, value) => {
+      if (err) {
+        // Receiving INV cmd from new block which I don't have the headers saved yet---
+        // throw err
+        return
+      }
 
-                resolve()
-              })
-            } else {
-              reject(err)
-            }
-          }
-          resolve()
-        })
-      })
-      promises.push(promise)
+      debug('Blocs synced at : ' + ((value.height/this.bestHeight)*100).toFixed(2)+ '%')
+      if (value.height < this.bestHeight) {
+        peer.sendGetBlocks([newBlocks[newBlocks.length - 1].hash])
+        return
+      }
+
+      // It means we are done and we are just waiting for the last header
+      this.emit('synchronized')
     })
 
-    Promise.all(promises)
-      .then(() => {
-        this.headers.get(newBlocks[newBlocks.length - 1].hash, (err, value) => {
-          if (err) {
-
-            // Reverse the buffer to look for the hash in testnet blockchain explorer
-            var hashReverse = ''
-            var hashBuffer = Buffer.from(newBlocks[newBlocks.length - 1].hash, 'hex')
-            for (var i=0; i < hashBuffer.length; i++) {
-              hashReverse = hashBuffer.slice(i, i+1).toString('hex') + hashReverse
-            }
-
-            // Receiving INV cmd from new block which I don't have the headers saved yet---
-            // throw err
-            return
-          }
-
-          if (value.height === this.bestHeight) {
-            return
-          }
-
-          console.log('Blocs synced at : ' + ((value.height/this.bestHeight)*100).toFixed(2)+ '%')
-          peer.sendGetBlocks([newBlocks[newBlocks.length - 1].hash])
-        })
-      }).catch((err) => {
-        throw err
-      })
   }
 
   updateMerkleBlock (merkleblockMessage) {
     var hash = doubleHash(Buffer.from(merkleblockMessage.blockHeader, 'hex'))
+
+    if (merkleblockMessage.blockHeader.length > 80) {
+      hash = doubleHash(Buffer.from(merkleblockMessage.blockHeader.slice(0, 80), 'hex'))
+    }
 
     this.headers.get(hash.toString('hex'), (err, value) => {
       if (err) {
@@ -467,9 +548,22 @@ class SPVNode {
       }
 
       var result = bmp.verify(merkle)
-    })
 
-    this.merkle = merkleblockMessage
+      // if doesn't throw it means that the merkle root is valid so we save this
+      this.merkles.put(hash.toString('hex'), merkleblockMessage, (err) => {
+        if (err) throw err
+
+        this.merkles.put('height', {height: value.height, hash: value.hash}, function (err) {
+          if (err) throw err
+        })
+
+        if (result.length > 0) {
+          // TODO: update bloom filter ? Not sure...
+          // this.txids.concat(result)
+        }
+
+      })
+    })
   }
 
   removePeer (peer) {
