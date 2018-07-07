@@ -10,6 +10,8 @@ const dns = require('dns')
 const constants = require('./constants')
 const pubkeyToAddress = require('./utils/pubkeyToAddress')
 const doubleHash = require('./utils/doubleHash')
+const fs = require('fs')
+
 
 // TODO: move this to main
 var { ADDRESSES } = require('../walletAddresses')
@@ -27,7 +29,7 @@ class SPVNode extends EventEmitter {
     this.hash = null
     this.bestHeight = 0
     this.txs = db.sublevel('txs')
-    this.txids = []
+    this.txids = new Map()
     this.txInsCounter = 0
     this.filter
     this.headers = db.sublevel('headers')
@@ -178,14 +180,45 @@ class SPVNode extends EventEmitter {
   }
 
   updateBalance (newBalance) {
+    this.balance += newBalance
+    this.totalTxs++
     this.wallet.put('balance', this.balance, (err) => {
-      this.balance += newBalance
-      this.totalTxs++
       this.emit('balanceUpdated', this.balance)
     })
   }
 
   updateTxs (newTx) {
+    /*let buf = Buffer.from(newTx.id, 'hex')
+    let inv = ''
+    for (let i=0; i < buf.length; i++) {
+      inv = buf.slice(i, i+1).toString('hex') + inv
+    }
+
+    if (inv === '51658dfad11b6386e8dda5d6ac328698e1d5e7d693ebcb1f7c2dd8f031200f64') {
+      fs.writeFileSync('test/spvnode/data-51658dfad11b6386e8dda5d6ac328698e1d5e7d693ebcb1f7c2dd8f031200f64.json', JSON.stringify(newTx))
+      console.log('We have seen :', inv)
+    }
+
+    if (inv === '322bc2d3bc88cdddae417cb0100b9e6a833f003d13454b66e3976a9b6417abdb') {
+      fs.writeFileSync('test/spvnode/data-322bc2d3bc88cdddae417cb0100b9e6a833f003d13454b66e3976a9b6417abdb.json', JSON.stringify(newTx))
+      console.log('We have seen :', inv)
+    }
+
+    if (inv === '8955db83a6549993541083fcd30c638ef3c5fd34c5e604c67fce70672935712b') {
+      fs.writeFileSync('test/spvnode/data-8955db83a6549993541083fcd30c638ef3c5fd34c5e604c67fce70672935712b.json', JSON.stringify(newTx))
+
+      console.log('We have seen :', inv)
+    }
+
+    if (inv === '2fb75eae6426a4ec4dbfc7c5479c756038afcaa2165723e82d9ccdb93728b06b') {
+      fs.writeFileSync('test/spvnode/data-2fb75eae6426a4ec4dbfc7c5479c756038afcaa2165723e82d9ccdb93728b06b.json', JSON.stringify(newTx))
+      console.log('We have seen :', inv)
+    }
+
+    if (inv === 'b5f22be0e8b24ae43285f7f724dd1b951d3007d2905290a844f6172f2d5c8a81') {
+      fs.writeFileSync('test/spvnode/data-b5f22be0e8b24ae43285f7f724dd1b951d3007d2905290a844f6172f2d5c8a81.json', JSON.stringify(newTx))
+      // throw new Error('Got it')
+    }*/
 
       newTx.txIns.forEach((txIn) => {
         let previousOutput = txIn.previousOutput.hash + txIn.previousOutput.index
@@ -194,10 +227,31 @@ class SPVNode extends EventEmitter {
           return
         }
 
+        let buf = Buffer.from(txIn.previousOutput.hash, 'hex')
+        let inv = ''
+        for (let i=0; i < buf.length; i++) {
+          inv = buf.slice(i, i+1).toString('hex') + inv
+        }
+
+        if (inv === '0c54fac33735ab2b2684d1a5ed5218e235c5d6b7a4bf2ebc9570f4afa5a6c583') {
+          console.log(newTx.id)
+          console.log('GOT IT ')
+        }
+
+        let txOut = this.txids.get(previousOutput)
+
+
+        if (txOut) {
+          console.log('We have found : ', inv)
+          this.txInsCounter++
+          //this.updateBalance(-txOut.value)
+          this.totalSpent  += txOut.value
+        }
+
         //debug('Looking for :', inv)
         //debug('For index :', txIn.previousOutput.index)
 
-        this.txs.get(previousOutput, (err, txOut) => {
+        /*this.txs.get(previousOutput, (err, txOut) => {
           if (err && err.type !== 'NotFoundError') throw err
 
           if (err && err.type == 'NotFoundError') {
@@ -211,9 +265,6 @@ class SPVNode extends EventEmitter {
             inv = buf.slice(i, i+1).toString('hex') + inv
           }
 
-          if (inv === '25658b224de64f52d4600688f38424cebc8b0c9102f43c7da6600a61b6f2be0e') {
-            console.log('Got it !')
-          }
 
           // We already got it
           if (txOut) {
@@ -222,7 +273,7 @@ class SPVNode extends EventEmitter {
             //this.updateBalance(-txOut.value)
             this.totalSpent  += txOut.value
           }
-        })
+        })*/
       })
 
 
@@ -261,30 +312,39 @@ class SPVNode extends EventEmitter {
           return
         }
 
-        let indexBuffer = Buffer.allocUnsafe(4)
-        indexBuffer.writeInt32BE(index, 0)
+        let buf = Buffer.from(newTx.id, 'hex')
+        let inv = ''
+        for (let i=0; i < buf.length; i++) {
+          inv = buf.slice(i, i+1).toString('hex') + inv
+        }
 
+        if (inv === '0c54fac33735ab2b2684d1a5ed5218e235c5d6b7a4bf2ebc9570f4afa5a6c583') {
+          console.log(newTx.id)
+          console.log('We have it registered as the txOutput')
+        }
+
+        let indexBuffer = Buffer.allocUnsafe(4)
+        indexBuffer.writeInt32LE(index, 0)
+
+        // console.log(indexBuffer)
         let previousOutput = newTx.id + indexBuffer.toString('hex')
 
         // Need to update filter for everyone
         this.updateFilter(newTx.id)
-        this.txids.push(previousOutput)
 
-        this.txs.put(previousOutput, txOut, (err) => {
+        // console.log(previousOutput)
+
+        this.txids.set(previousOutput, txOut)
+
+        this.updateBalance(txOut.value)
+
+        /*this.txs.put(previousOutput, txOut, (err) => {
           if (err) throw err
 
-          let buf = Buffer.from(newTx.id, 'hex')
-          let inv = ''
-          for (let i=0; i < buf.length; i++) {
-            inv = buf.slice(i, i+1).toString('hex') + inv
-          }
-
-          if (inv === '0e2bcd74e93c976db019ff506a4093356a4ad3f515e2918c8ff18b59891a543a') {
+          /*if (inv === '0e2bcd74e93c976db019ff506a4093356a4ad3f515e2918c8ff18b59891a543a') {
             console.log('We have seen :', inv)
           }
-
-          this.updateBalance(txOut.value)
-        })
+        })*/
       })
 
   }
@@ -435,6 +495,7 @@ class SPVNode extends EventEmitter {
 
       // Show pourcentage
       debug('Sync at ' + ((this.height/this.bestHeight)*100).toFixed(2)+ '%')
+      debug('Height :', this.height)
 
       var finishSyncHeader = true
 
@@ -508,6 +569,8 @@ class SPVNode extends EventEmitter {
       }
 
       debug('Blocs synced at : ' + ((value.height/this.bestHeight)*100).toFixed(2)+ '%')
+      debug('Heigh : ', value.height)
+
       if (value.height < this.bestHeight) {
         peer.sendGetBlocks([newBlocks[newBlocks.length - 1].hash])
         return

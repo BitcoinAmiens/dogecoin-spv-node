@@ -1,0 +1,34 @@
+{
+  "id":"6bb02837b9cd9c2de8235716a2caaf3860759c47c5c7bf4deca42664ae5eb72f",
+  "version":1,
+  "txInCount":1,
+  "txIns":[
+    {
+      "previousOutput": {
+          "hash":"be26fc2bd16b83eb215e3a8531d60884cb8dbc380a05022c0a7becabd84be396",
+          "index":"01000000"
+        },
+        "signature":"0047304402205b44b80fe044a4ab48ebdb4d6bae3241b0061eecd31e39d0dd1ee4fa8b2b73de022028cea423d6eb4e51bc896e5d5e29cf492ee46ce35b3351daa6d6fecb76375ed701473044022065cd835c5039bf04ec415f1a392d96957a6ef96cd8c5b53826f0f53d9e22ff0f02201e4cbb3e750c386a28d3fea0e1cf5ec3157588f52958acaf5f65bbe16166fffa014752210300572d944c81e060fdcf94f604e2d588e41696dfc51e3de508e1016fafda65032103075651fff8b6d2724c44016a6fe350c4c8a3f518657ea7c91959938ad066c7b152ae",
+        "sequence":4294967295
+    }],
+  "txOutCount":2,
+  "txOuts":[
+    {
+      "value":500000000,
+      "pkScriptSize":23,
+      "pkScript":
+        {
+          "type":"Buffer",
+          "data":[169,20,127,57,96,207,45,16,57,98,224,216,75,132,8,247,183,92,186,19,54,152,135]
+          }
+    },
+    {
+      "value":46200000000,
+      "pkScriptSize":23,
+      "pkScript":{
+        "type":"Buffer",
+        "data":[169,20,228,207,185,151,6,132,146,178,212,208,70,86,33,114,52,143,223,45,184,217,135]
+      }
+  }],
+  "locktime":0
+}
