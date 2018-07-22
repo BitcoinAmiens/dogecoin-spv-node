@@ -12,6 +12,8 @@ const pubkeyToAddress = require('./utils/pubkeyToAddress')
 const doubleHash = require('./utils/doubleHash')
 const fs = require('fs')
 
+// slow nodes
+const BAN_LIST = ['81.169.217.181']
 
 // TODO: move this to main
 var { ADDRESSES } = require('../walletAddresses')
@@ -83,8 +85,8 @@ class SPVNode extends EventEmitter {
             result.forEach((ip) => {
               debug(' Attempt connection with ', ip)
               // draglet slow node. Fuck that.
-              // TODO: proper bal list
-              if (ip === '85.214.213.86') return
+              // TODO: proper ban list
+              if (BAN_LIST.indexOf(ip) >= 0) return
 
               this.addPeer(ip, constants.DEFAULT_PORT)
                 .then(function () {

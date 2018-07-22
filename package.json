@@ -24,6 +24,7 @@
     "nodemon": "^1.14.8"
   },
   "dependencies": {
+    "bip39": "git+https://github.com/bitcoinjs/bip39.git",
     "bitcoin-merkle-proof": "^0.1.0",
     "bloom-filter": "^0.2.0",
     "bs58": "^4.0.1",
@@ -32,7 +33,6 @@
     "exp-net": "0.0.1",
     "level": "^3.0.0",
     "level-sublevel": "^6.6.2",
-    "mnemonic-words": "^1.0.0",
     "multicast-dns": "^7.0.0",
     "ripemd160": "^2.0.1"
   }

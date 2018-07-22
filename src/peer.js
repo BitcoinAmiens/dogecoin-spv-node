@@ -230,6 +230,7 @@ class Peer extends EventEmitter {
   }
 
   _updateTxs (txMessage) {
+    debug('Handle Tx message')
     this.node.updateTxs(txMessage)
   }
 
@@ -253,6 +254,7 @@ class Peer extends EventEmitter {
     if (invMessage.count === 1) return
 
     debug('Peer n° %s received inv message', this.id)
+    debug('IP :', this.ip)
 
     var payload = inv.encodeInvMessage(invMessage)
 
@@ -265,6 +267,7 @@ class Peer extends EventEmitter {
   }
 
   _handleMerkleblock (merkleblockMessage) {
+    debug('Handle merkleBlock')
     this.node.updateMerkleBlock(merkleblockMessage)
   }
 }
