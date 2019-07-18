@@ -40,7 +40,7 @@ function decodeHeadersMessage (payload) {
     header.time = payload.readUInt32LE(offset)
     offset += 4
 
-    header.nBits = payload.readUInt32LE(offset)
+    header.nBits = payload.slice(offset, offset + 4).toString('hex')
     offset += 4
 
     header.nonce = payload.readUInt32LE(offset)
