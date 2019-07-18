@@ -15,6 +15,8 @@ class Wallet {
     this.addresses = []
     this.pubkeys = new Map()
     this.pubkeyHashes = new Map()
+
+    // ONLY USE FOR REGTEST AND TESTNET !
     this._mnemonic = "neutral acoustic balance describe access pitch tourist skull recycle nation silent crawl"
     this._seed
     this.app

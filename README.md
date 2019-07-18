@@ -9,7 +9,11 @@ Start the vagrantbox :
 $ vagrant up
 ```
 
+It will start the dogecoind in regtest mode.
+
 ## NOTES
+
+THE MNEMONIC SHOULD ONLY BE USE IN REGTEST OR FOR TEST.
 
 ### Sublevel
 
