@@ -4,9 +4,15 @@
   "description": "dogecoin",
   "main": "main.js",
   "scripts": {
-    "start": "nodemon main.js",
+    "start": "DEBUG=*,-nodemon:* nodemon main.js",
     "bloom": "nodemon src/utils/bloom.js",
+    "clean": "rm -rf data",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "test/*"
+    ]
   },
   "keywords": [
     "dogecoin",
@@ -19,11 +25,20 @@
     "nodemon": "^1.14.8"
   },
   "dependencies": {
+    "@ledgerhq/hw-app-btc": "^4.20.0",
+    "@ledgerhq/hw-transport-node-hid": "^4.19.1",
+    "bip32": "^2.0.3",
+    "bip39": "git+https://github.com/bitcoinjs/bip39.git",
+    "bitcoin-merkle-proof": "^0.1.0",
     "bloom-filter": "^0.2.0",
     "bs58": "^4.0.1",
     "bs58check": "^2.1.1",
+    "debug": "^3.1.0",
+    "ecdsa": "^0.7.0",
     "exp-net": "0.0.1",
-    "level": "^3.0.0",
-    "ripemd160": "^2.0.1"
+    "level": "^5.0.1",
+    "multicast-dns": "^7.0.0",
+    "ripemd160": "^2.0.1",
+    "secp256k1": "^3.7.1"
   }
 }

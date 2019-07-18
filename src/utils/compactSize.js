@@ -8,6 +8,11 @@ class CompactSize {
 
   static fromBuffer(data, offset) {
     var firstByte = data.slice(offset, offset + 1)
+
+    if (firstByte.size < 1) {
+      throw new Error('Cannot read first byte because too small')
+    }
+
     this.offset = offset + 1
 
     switch (firstByte.toString('hex')) {
@@ -25,6 +30,7 @@ class CompactSize {
         break
       default:
         this.size = firstByte.readUInt8(0)
+
     }
 
     this.offset = this.offset - offset
