@@ -2,6 +2,8 @@ var net = require('net')
 var EventEmitter = require('events')
 var debug = require('debug')('peer')
 
+const { readU64 } = require('./utils/write64')
+
 var packet = require('./commands/packet')
 var version = require('./commands/version')
 var inv = require('./commands/inv')
@@ -75,6 +77,7 @@ class Peer extends EventEmitter {
 
   _onError (error) {
     // TODO: register as not working node...
+    debug(error)
     this.socket = null
     this.node.removePeer(this)
   }
@@ -122,6 +125,7 @@ class Peer extends EventEmitter {
           break
         case 'reject':
           const rejectMessage = reject.decodeRejectMessage(msg.payload)
+          debug(rejectMessage)
           break
         case 'block':
           const blockMessage = block.decodeBlockMessage(msg.payload)
@@ -158,12 +162,15 @@ class Peer extends EventEmitter {
           reject(err)
           return
         }
+        debug('Filter loaded')
         resolve()
       })
     })
   }
 
   sendGetHeader (blockHash = [GENESIS_BLOCK_HASH]) {
+    debug('peer n° %i getheaders', this.id)
+    debug('Asked for :', blockHash)
     var payload = getheaders.encodeGetheadersMessage(blockHash)
     const getHeadersMessage = packet.preparePacket('getheaders', payload)
     this.socket.write(getHeadersMessage, function (err) {
@@ -213,6 +220,17 @@ class Peer extends EventEmitter {
     })
   }
 
+  sendRawTransaction (rawTransaction) {
+    var txMessage = packet.preparePacket('tx', rawTransaction)
+    this.socket.write(txMessage, function (err) {
+      if (err) {
+        console.error(err)
+        return
+      }
+      debug('Raw Tx sent')
+    })
+  }
+
   _sendVerackMessage () {
     var verackMessage = packet.preparePacket('verack', Buffer.alloc(0))
     this.socket.write(verackMessage)
@@ -225,16 +243,42 @@ class Peer extends EventEmitter {
 
   _onClose (response) {
     this.emit('closed')
+    debug('Connection closed')
     this.socket = null
     this.node.removePeer(this)
   }
 
   _updateTxs (txMessage) {
-    debug('Handle Tx message')
+    //debug('Handle Tx message')
     this.node.updateTxs(txMessage)
   }
 
   _updateHeaders (headersMessage) {
+    debug('peer n° %i received headers message', this.id)
+    debug('Ip : ', this.ip)
+    /* Verify difficulty */
+    headersMessage.headers.map((header) => {
+      let buf = Buffer.from(header.nBits, 'hex')
+      let exponent = buf.slice(3,4)
+      let coefficient = buf.slice(0,3)
+
+      exponent = exponent.readUInt8()
+      coefficient = coefficient.readUIntLE(0,3)
+
+      let target = coefficient * 256**(exponent-3)
+
+      let difficulty = Math.floor(Buffer.from('ffff', 'hex').readUInt16BE() * 256**(Buffer.from('1d', 'hex').readUInt8() - 3) / target)
+      let proof = readU64(Buffer.from(header.hash, 'hex'),0)
+
+      if (proof > target) {
+        console.log('NOOOOOOO')
+        process.exit()
+      }
+
+    })
+
+    debug('Proof verified over')
+
     this.node.updateHeaders(headersMessage)
   }
 
@@ -267,7 +311,7 @@ class Peer extends EventEmitter {
   }
 
   _handleMerkleblock (merkleblockMessage) {
-    debug('Handle merkleBlock')
+    //debug('Handle merkleBlock')
     this.node.updateMerkleBlock(merkleblockMessage)
   }
 }

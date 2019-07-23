@@ -6,7 +6,7 @@ function decodeMerkleblockMessage (payload) {
   let offset = 0
   var compactSize
 
-  debug('Merkle message length :', payload.length)
+  //debug('Merkle message length :', payload.length)
 
   if (payload.slice(1,4).toString('hex') === '016200') {
     // Merged mining block header
