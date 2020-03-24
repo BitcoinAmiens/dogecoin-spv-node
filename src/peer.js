@@ -2,6 +2,8 @@ var net = require('net')
 var EventEmitter = require('events')
 var debug = require('debug')('peer')
 
+const doubleHash = require('./utils/doubleHash')
+
 const { readU64 } = require('./utils/write64')
 
 var packet = require('./commands/packet')
@@ -41,17 +43,19 @@ class Peer extends EventEmitter {
     this.socket.on('data', this._onData.bind(this))
     this.socket.on('close', this._onClose.bind(this))
     this.socket.on('error', this._onError.bind(this))
+    this.socket.on('timeout', this._onTimeOut.bind(this))
+
   }
 
   connect () {
     return new Promise ((resolve, reject) => {
       let something = this.socket.connect(this.port, this.ip, (res) => {
-        console.log('Connecting to', this.ip)
+        debug('Connecting to', this.ip)
         var message = version.versionMessage()
         const versionPacket = packet.preparePacket('version', message)
 
         this.on('verack', function () {
-          console.log('Connected !')
+          debug('Connected !')
           resolve()
         })
 
@@ -61,6 +65,7 @@ class Peer extends EventEmitter {
         })
 
         this.on('error', function () {
+          debug('error while connecting')
           this.closed = true
           reject('error')
         })
@@ -77,7 +82,17 @@ class Peer extends EventEmitter {
 
   _onError (error) {
     // TODO: register as not working node...
-    debug(error)
+    debug(`ERROR ! ${this.ip} ${error}`)
+
+    // If we uncomment this it throw a huge error
+    //this.emit('error')
+    this.socket = null
+    this.node.removePeer(this)
+  }
+
+  _onTimeOut () {
+    debug(`timeout ${this.ip}`)
+    this.emit('timeout')
     this.socket = null
     this.node.removePeer(this)
   }
@@ -129,6 +144,7 @@ class Peer extends EventEmitter {
           break
         case 'block':
           const blockMessage = block.decodeBlockMessage(msg.payload)
+          this._handleBlock(blockMessage)
           break
         case 'merkleblock':
           const merkleblockMessage = merkleblock.decodeMerkleblockMessage(msg.payload)
@@ -138,8 +154,11 @@ class Peer extends EventEmitter {
           const txMessage = tx.decodeTxMessage(msg.payload)
           this._updateTxs(txMessage)
           break
+        case 'notfound':
+          debug('What you doing ????')
+          break
         default:
-          console.log(msg.cmd)
+          debug("Unknown command :",msg.cmd)
       }
     })
   }
@@ -242,8 +261,8 @@ class Peer extends EventEmitter {
   }
 
   _onClose (response) {
-    this.emit('closed')
     debug('Connection closed')
+    this.emit('closed')
     this.socket = null
     this.node.removePeer(this)
   }
@@ -277,13 +296,12 @@ class Peer extends EventEmitter {
 
     })
 
-    debug('Proof verified over')
-
     this.node.updateHeaders(headersMessage)
   }
 
   _handleVersionMessage (versionMessage) {
     this.bestHeight = versionMessage.height
+    debug(versionMessage)
     this._sendVerackMessage()
   }
 
@@ -295,17 +313,40 @@ class Peer extends EventEmitter {
   _handleInvMessage (invMessage) {
 
     // It just notified us of a new bock. For now we dont care
-    if (invMessage.count === 1) return
+    // BUT NOW WE DO!
+    // BUT IT COULD BE MEMPOOL!
+    // NEED TO CHECK
+    if (invMessage.count === 1) {
+      if (invMessage.inventory[0].type == 'MSG_TX') {
+        // If it is mempool update message dont do anything for now
+        return
+      }
+
+      // 2 because we want MSG_BLOCK
+      let payload = inv.encodeInvMessage(invMessage, 2)
+
+      // Not working on regtest!!!
+      // We are missing messages
+      // Fuck it we are still using it
+
+      //this.sendGetData(payload)
+
+      //this.node.sendGetHeaders()
+
+      return
+    }
 
     debug('Peer n° %s received inv message', this.id)
     debug('IP :', this.ip)
 
-    var payload = inv.encodeInvMessage(invMessage)
+    // 3 because we want MSG_FILTERED_BLOCK
+    var payload = inv.encodeInvMessage(invMessage, 3)
 
     this._updateBlocks(invMessage.inventory)
     this.sendGetData(payload)
   }
 
+  // TODO: Better name not clear with the `s`
   _updateBlocks (newBlocks) {
     this.node.updateBlocks(newBlocks)
   }
@@ -313,6 +354,46 @@ class Peer extends EventEmitter {
   _handleMerkleblock (merkleblockMessage) {
     //debug('Handle merkleBlock')
     this.node.updateMerkleBlock(merkleblockMessage)
+  }
+
+  _handleBlock (blockMessage) {
+    // Decode header
+    let buffer = new Buffer.from(blockMessage.blockHeader, 'hex')
+
+    let blockHeader = {}
+    let offset = 0
+
+    blockHeader.version = buffer.readInt32LE(offset)
+    offset += 4
+
+    blockHeader.previousHash = buffer.slice(offset, offset + 32).toString('hex')
+    offset += 32
+
+    if (blockHeader.previousHash === '0000000000000000000000000000000000000000000000000000000000000000') {
+      // fs.writeFileSync('test/headers/data3.json', JSON.stringify(data))
+
+      throw Error('PREVIOUS HASH SHOULD NOT BE NULL')
+    }
+
+    blockHeader.merklerootHash = buffer.slice(offset, offset + 32).toString('hex')
+    offset += 32
+
+    blockHeader.time = buffer.readUInt32LE(offset)
+    offset += 4
+
+    blockHeader.nBits = buffer.slice(offset, offset + 4).toString('hex')
+    offset += 4
+
+    blockHeader.nonce = buffer.readUInt32LE(offset)
+    offset += 4
+
+    // Need the hash
+    blockHeader.hash = doubleHash(buffer).toString('hex')
+
+    blockMessage.blockHeader = blockHeader
+
+    this.node.processBlock(blockMessage)
+
   }
 }
 

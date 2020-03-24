@@ -1,5 +1,5 @@
 var Peer = require('./peer')
-var debug = require('debug')('spvnode')
+var debug = require('./debug')('spvnode')
 var level = require('level')
 var BloomFilter = require('bloom-filter')
 var EventEmitter = require('events')
@@ -11,45 +11,41 @@ const pubkeyToAddress = require('./utils/pubkeyToAddress')
 const doubleHash = require('./utils/doubleHash')
 const fs = require('fs')
 
+
 // slow nodes
-const BAN_LIST = []
+const BAN_LIST = ['198.58.102.18']
 
 // TODO: move this to main
 var { ADDRESSES } = require('../walletAddresses')
 
 class SPVNode extends EventEmitter {
-  constructor (addresses = ADDRESSES) {
+
+  _shutdown = false
+  peers = []
+  // Follow header heigh
+  height = 0
+  hash = null
+  bestHeight = 0
+  // Caching merkle block height for faster update
+  merkleHeight = 0
+  // need to be genesis block hash
+  merkleHash = constants.GENESIS_BLOCK_HASH
+
+
+  constructor (addresses) {
     super()
 
-    //var db = sublevel(level(__dirname + '/../db', {valueEncoding: 'json'}))
-
-    this.peers = []
-    this.balance = 0
-    this.totalSpent = 0
-    this.height = 0
-    this.hash = null
-    this.bestHeight = 0
-    this.txs = level(__dirname + '/../data/txs', {valueEncoding: 'json'})
-    this.unspentTxs = level(__dirname + '/../data/unspent', {valueEncoding: 'json'})
-    this.txids = new Map()
-    this.txInsCounter = 0
-    this.filter
-    /*this.headers = db.sublevel('headers')
-    this.merkles = db.sublevel('merkles')
-    this.wallet = db.sublevel('wallet')*/
-    this.headers = level(__dirname + '/../data/headers', {valueEncoding: 'json'})
-    this.merkles = level(__dirname + '/../data/merkles', {valueEncoding: 'json'})
-    this.wallet = level(__dirname + '/../data/wallet', {valueEncoding: 'json'})
+    this.headers = level(__dirname + '/../data/spvnode/headers', {valueEncoding: 'json'})
+    this.merkles = level(__dirname + '/../data/spvnode/merkles', {valueEncoding: 'json'})
+    // Should replace walletAddresses
+    // We only need unspent tx to know balance
+    // And use wallet db to keep track of addresses use
+    //this.wallet = level(__dirname + '/../data/wallet', {valueEncoding: 'json'})
     this.tips = new Map()
-    this.addresses = addresses
-
-    this.totalTxs = 0
-
-    //console.log(this.addresses)
 
     // Prepare filter here
-    this.filter = BloomFilter.create(this.addresses.length, 0.001)
-    for (var address of this.addresses) {
+    this.filter = BloomFilter.create(addresses.length, 0.001)
+    for (var address of addresses) {
       var bufferAddress = Buffer.from(address, 'hex')
       this.filter.insert(bufferAddress)
     }
@@ -62,28 +58,37 @@ class SPVNode extends EventEmitter {
     }
   }
 
+  isShuttingDown () {
+    return this._shutdown
+  }
+
+  _getHeightFromDB () {
+    let promise = new Promise((resolve, reject) => {
+      this.headers.get('height', (err, value) => {
+        if (err && err.type !== 'NotFoundError') { reject() }
+        if (err && err.type === 'NotFoundError') {
+          resolve()
+          return
+        }
+
+        this.height = value.height
+        this.hash = value.hash
+
+        debug(`Starting height : ${this.height}`)
+
+        resolve()
+      })
+    })
+
+    return promise
+  }
+
   async start () {
+    debug('==== Starting spvnode ====')
 
-    await this.headers.get('height', (err, value) => {
-      if (err && err.type !== 'NotFoundError') throw err
-      if (err && err.type === 'NotFoundError') return
-
-      this.height = value.height
-      this.hash = value.hash
-
-      console.log('Hash :', this.hash)
-      console.log('Height :', this.height)
-    })
-
-    await this.wallet.get('balance', (err, value) => {
-      if (err && err.type !== 'NotFoundError') throw err
-      if (err && err.type === 'NotFoundError') return
-
-      this.balance = value
-    })
+    await this._getHeightFromDB()
 
     // DNS peer
-    console.log('==== Starting spvnode ====')
     if (process.env.NETWORK !== 'regtest') {
       debug('Resolving DNS seed')
       var promises = []
@@ -92,25 +97,29 @@ class SPVNode extends EventEmitter {
           this._getDnsSeed(host)
           .then((result) => {
             result.forEach((ip) => {
-              debug(' Attempt connection with ', ip)
+              debug('Attempt connection with ', ip)
               // draglet slow node. Fuck that.
               // TODO: proper ban list
               if (BAN_LIST.indexOf(ip) >= 0) return
 
               this.addPeer(ip, constants.DEFAULT_PORT)
                 .then(function () {
-                  console.log('Peer ' + ip + ' added !' )
+                  debug('Peer ' + ip + ' added !' )
                   resolve()
                 })
                 .catch(function (err) {
-                  console.log(err)
-                  reject()
+                  debug(err)
+
+                  // Dont reject anymore instead save as broken
+                  //reject(err)
+
+                  resolve()
                 })
             })
           })
           .catch(function (err) {
-            console.log(err)
-            reject(err)
+            debug(err)
+            reject()
           })
         })
         promises.push(promise)
@@ -118,14 +127,6 @@ class SPVNode extends EventEmitter {
       // Once we are connected to one we can start doing stuff
       return Promise.race(promises)
     }
-    return new Promise((resolve, reject) => {
-      this.headers.get('height', (err, value) => {
-        if (err) throw err
-
-        this.height = value
-        resolve()
-      })
-    })
   }
 
   _getDnsSeed (host) {
@@ -145,8 +146,19 @@ class SPVNode extends EventEmitter {
     })
   }
 
+  _getCurrentState ()  {
+    return {
+      bestHeight: this.bestHeight,
+      height: this.height,
+      hash: this.hash,
+      peers: this.peers,
+      tips: this.tips,
+      merkleHeight: this.merkleHeight
+    }
+  }
+
   synchronize () {
-    console.log('==== Starting synchronizing ====')
+    debug('==== Starting synchronizing ====')
     if (this.peers.length <= 0) {
       console.error(new Error('No peers.'))
     }
@@ -159,6 +171,16 @@ class SPVNode extends EventEmitter {
     } else {
       peer.sendGetHeader()
     }
+  }
+
+  // TODO: Unuse for now
+  sendGetHeaders () {
+    if (this.peers.length <= 0) {
+      console.error(new Error('No peers.'))
+    }
+    // Choose a random peer to getHeaders
+    let rand = Math.floor(Math.random() * this.peers.length)
+    let peer = this.peers[rand]
   }
 
   addPeer (ip, port) {
@@ -174,6 +196,9 @@ class SPVNode extends EventEmitter {
 
             if (peer.bestHeight > this.bestHeight) {
               this.bestHeight = peer.bestHeight
+
+              // Emit new SPV node state
+              this.emit('newState', this._getCurrentState())
             }
 
             resolve()
@@ -184,113 +209,17 @@ class SPVNode extends EventEmitter {
           })
         })
         .catch((error) => {
-          console.log(error)
+          debug(error)
           reject(error)
         })
     })
   }
 
-  updateBalance (newBalance) {
-    this.balance += newBalance
-    this.totalTxs++
-    this.wallet.put('balance', this.balance, (err) => {
-      this.emit('balanceUpdated', this.balance)
-    })
-  }
-
+  // This should be move to wallet
   updateTxs (newTx) {
-    let buf = Buffer.from(newTx.id, 'hex')
-    let inv = ''
-    for (let i=0; i < buf.length; i++) {
-      inv = buf.slice(i, i+1).toString('hex') + inv
-    }
+    //debug('New Tx :', newTx.id)
 
-    debug('New Tx :', newTx.id)
-
-    newTx.txIns.forEach((txIn) => {
-      let previousOutput = txIn.previousOutput.hash + txIn.previousOutput.index
-      // If coinbase txIn we don't care
-      if (txIn.previousOutput.hash === '0000000000000000000000000000000000000000000000000000000000000000') {
-        return
-      }
-      let buf = Buffer.from(txIn.previousOutput.hash, 'hex')
-      let inv = ''
-      for (let i=0; i < buf.length; i++) {
-        inv = buf.slice(i, i+1).toString('hex') + inv
-      }
-
-      let txOut = this.txids.get(previousOutput)
-
-      if (txOut) {
-        console.log('We have found : ', inv)
-        this.txInsCounter++
-        //this.updateBalance(-txOut.value)
-        this.totalSpent  += txOut.value
-      }
-    })
-
-
-      // TODO: need to verify if address belongs to wallet
-      // And we actually need txOuts records not txs stupid (:heart:)
-    newTx.txOuts.forEach((txOut, index) => {
-
-      // We should have a switch here
-      let firstByte = txOut.pkScript.slice(0, 1).toString('hex')
-      let address
-
-      switch (firstByte) {
-        case '21':
-          let pubkey = txOut.pkScript.slice(1, 34)
-          //address = pubkeyToAddress(pubkey)
-          address = pubkey.toString('hex')
-          break
-
-        case '76':
-          let pubkeyHash = txOut.pkScript.slice(3, 23)
-          //address = pubkeyToAddress(pubkeyHash, true)
-          address = pubkeyHash.toString('hex')
-          break
-
-        // P2SH !!!newTx.txOuts
-        case 'a9':
-          let redeemScriptHash = txOut.pkScript.slice(2, 22)
-          //address = pubkeyToAddress(redeemScriptHash, true, true)
-          address = redeemScriptHash.toString('hex')
-          break
-
-        default:
-          //console.log('unknown script')
-      }
-
-      if (this.addresses.indexOf(address)<0) {
-        // Not in our wallet (false positive)
-        return
-      }
-
-      let indexBuffer = Buffer.allocUnsafe(4)
-      indexBuffer.writeInt32LE(index, 0)
-
-      // console.log(indexBuffer)
-      let previousOutput = newTx.id + indexBuffer.toString('hex')
-
-      // Need to update filter for everyone
-      // Actually not because we used the flag UPDATE in the bloom filter message
-      // this.updateFilter(newTx.id)
-
-      this.txids.set(previousOutput, txOut)
-
-      this.updateBalance(txOut.value)
-
-      // Save full tx in 'txs'
-      this.txs.put(newTx.id, newTx, (err) => {
-        if (err) throw err
-
-        // save only the unspent output in 'unspent'
-        this.unspentTxs.put(newTx.id, {txid: newTx.id, vout: newTx.txOuts.indexOf(txOut), value: txOut.value}, (err) => {
-          if (err) throw err
-        })
-      })
-    })
+    this.emit('tx', newTx)
   }
 
   updateFilter (element) {
@@ -310,13 +239,73 @@ class SPVNode extends EventEmitter {
     this.height = newHeight
     this.hash = hash
 
-    this.updateHeightInDb(this.height, this.hash)
+    // Update best Height too
+    if (this.height > this.bestHeight) { this.bestHeight = this.height }
+
+    this.emit('newState', this._getCurrentState())
   }
 
-  updateHeightInDb (newHeight, hash) {
-    this.headers.put('height', { height: newHeight, hash}, (err) => {
-      if (err) throw err
+  // Process new block
+  // What happened if we have 2 new blocks in message ?
+  processBlock (newBlock) {
+    // TODO: verify we haven't saved it yet ?
+
+    // Verify header
+    this.headers.get(newBlock.blockHeader.previousHash, (err, value) => {
+
+      if (err) {
+        //throw new Error("We don't have the Previous Hash !")
+        // Throw error if we are processing block at the same time we are synchronizing
+        return
+      }
+
+      newBlock.blockHeader.height = value.height + 1
+
+      // VERIFY HEADER DIFFIVULTY BEFORE?
+
+      this.headers.put(newBlock.blockHeader.hash, newBlock.blockHeader, (err) => {
+        // If we couldnt registered we dont update
+        if (err) {
+          throw new Error("Couldnt update database with new block header!")
+        }
+
+        // We need to update tip
+        let tip = this.tips.get(newBlock.blockHeader.previousHash)
+
+        if (tip) {
+          // We found a new tip
+          // TODO: doesnt seems right what happened if we have a fork
+          this.tips.delete(newBlock.blockHeader.previousHash)
+          this.tips.set(newBlock.blockHeader.hash, newBlock.blockHeader)
+
+          this.emit('newState', this._getCurrentState())
+        }
+
+        if (newBlock.blockHeader.height > this.height ) {
+          this.updateHeight(newBlock.blockHeader.height, newBlock.blockHeader.hash)
+        }
+
+        // Update merkle
+        // Ok we are actually saving full block!
+        // TODO: make it a function
+        this.merkles.put(newBlock.blockHeader.hash, newBlock, (err) => {
+          if (err) throw err
+
+
+          // Updating new heigh
+          this.merkleHeight = newBlock.blockHeader.height
+          this.merkleHash = newBlock.blockHeader.hash
+        })
+
+        // Verify if one of the transactions is ours
+        // TODO: We should rebuild the merkle root too
+        newBlock.txn.forEach((tx, index) => {
+          this.updateTxs(tx)
+        })
+
+      })
     })
+
   }
 
   async updateHeaders (headersMessage) {
@@ -337,15 +326,15 @@ class SPVNode extends EventEmitter {
         if (err) throw err
 
         debug('Got an empty headers message...')
-        console.log(value)
 
-        /* NOT GOOD! you cant start from the height of headers... We need prececent blocks.*/
+        /* NOT GOOD! you cant start from the height of headers... We need precedent blocks.*/
         if (value.height < this.bestHeight) {
-          // Need getBlocks because we cannot ask directly using the hedaers. We are
+          // Need getBlocks because we cannot ask directly using the headers. We are
           // not sure of what the full node has or if has been pruned ?
           peer.sendGetBlocks([value.hash])
           return
         }
+
         this.emit('synchronized')
       })
 
@@ -362,7 +351,10 @@ class SPVNode extends EventEmitter {
         if (newBestHeight < header.height) {
           newBestHeight = header.height
         }
+
         this.tips.delete(header.previousHash)
+
+        this.emit('newState', this._getCurrentState())
       } else {
 
         // TODO: we need to load the db with the first header
@@ -411,9 +403,11 @@ class SPVNode extends EventEmitter {
 
       // Keep chains tips
       this.tips.set(header.hash, header)
+      this.emit('newState', this._getCurrentState())
 
       if (this.tips.size > 1) {
-        console.log('We have a fork !')
+        debug('We have a fork !')
+        debug(this.tips)
       }
 
       // keep a map of headers
@@ -435,6 +429,8 @@ class SPVNode extends EventEmitter {
       var iterator = this.tips.entries()
       var value = iterator.next().value
 
+      // TODO : Not sure what is used for ^
+
       if (value[1].height !== newBestHeight) {
         throw Error('wrong hash for this height')
       }
@@ -447,38 +443,35 @@ class SPVNode extends EventEmitter {
 
       var finishSyncHeader = true
 
-      // TODO: randomize the selection of peers
-      for (var peer of this.peers) {
-        if (peer.bestHeight > this.height) {
+      let rand = Math.floor(Math.random() * this.peers.length)
+      let peer = this.peers[rand]
 
-          let hashesNotSorted = []
-          let hashes = []
-          this.tips.forEach(function (value, key, map) {
-            if (value.height > 0) {
-              hashesNotSorted.push(value)
-            }
-          })
+      if (this.bestHeight > this.height) {
 
-          hashesNotSorted.sort(function (a, b) {
-            return b.height - a.height
-          })
+        let hashesNotSorted = []
+        let hashes = []
 
-          hashesNotSorted.forEach(function (value) {
-            hashes.push(value.hash)
-          })
+        this.tips.forEach(function (value, key, map) {
+          if (value.height > 0) {
+            hashesNotSorted.push(value)
+          }
+        })
 
-          finishSyncHeader = false
+        hashesNotSorted.sort(function (a, b) {
+          return b.height - a.height
+        })
 
-          peer.sendGetHeader(hashes)
-          break
-        }
+        hashesNotSorted.forEach(function (value) {
+          hashes.push(value.hash)
+        })
+
+        finishSyncHeader = false
+
+        peer.sendGetHeader(hashes)
       }
 
       // If no more headers we can start asking for the rest
       if (finishSyncHeader) {
-        let rand = Math.floor(Math.random() * this.peers.length)
-        let peer = this.peers[rand]
-
         this.merkles.get('height', (err, value) => {
           if (err && err.type !== 'NotFoundError') throw err
 
@@ -489,21 +482,21 @@ class SPVNode extends EventEmitter {
             }
           }
 
-          debug('Headers message had headers that needed to be processed!')
-          /* We are cheating here */
-          /*value = {
-            height : 1991297,
-            hash : 'be6e5b404aa35c5d677b249e4e477e6b31cf7312a199553666dfafef526ede6f'
-          }*/
+          this.merkleHeight = value.height
+          this.merkleHash = value.hash
 
           if (value.height < this.bestHeight) {
-            // Need getBlocks because we cannot ask directly using the hedaers. We are
+
+            // TODO: create a sendGetBlocks function
+            let rand = Math.floor(Math.random() * this.peers.length)
+            let peer = this.peers[rand]
+
+            // Need getBlocks because we cannot ask directly using the headers. We are
             // not sure of what the full node has or if has been pruned ?
             peer.sendGetBlocks([value.hash])
+
             return
           }
-
-          this.emit('synchronized')
 
         })
       }
@@ -511,36 +504,33 @@ class SPVNode extends EventEmitter {
     })
   }
 
+  // Actually get more blocks process
   updateBlocks (newBlocks) {
-    // Choose a random peer to getBlocks
-    let rand = Math.floor(Math.random() * this.peers.length)
-    let peer = this.peers[rand]
 
     this.headers.get(newBlocks[newBlocks.length - 1].hash, (err, value) => {
       if (err) {
         // Receiving INV cmd from new block which I don't have the headers saved yet---
         // throw err
+        console.log(newBlocks)
         return
       }
 
-      debug('Blocs synced at : ' + ((value.height/this.bestHeight)*100).toFixed(2)+ '%')
-      debug('Heigh : ', value.height)
-
       if (value.height < this.bestHeight) {
+        // Choose a random peer to getBlocks
+        let rand = Math.floor(Math.random() * this.peers.length)
+        let peer = this.peers[rand]
+
+        // This should be done once we have cleared alll the merkle blocks
         peer.sendGetBlocks([newBlocks[newBlocks.length - 1].hash])
         return
       }
 
-      // It means we are done and we are just waiting for the last header
-      this.emit('synchronized')
     })
 
   }
 
   updateMerkleBlock (merkleblockMessage) {
     var hash = doubleHash(Buffer.from(merkleblockMessage.blockHeader, 'hex'))
-
-    //debug('Merkle Block :', hash.toString('hex'))
 
     if (merkleblockMessage.blockHeader.length > 80) {
       hash = doubleHash(Buffer.from(merkleblockMessage.blockHeader.slice(0, 80), 'hex'))
@@ -554,8 +544,8 @@ class SPVNode extends EventEmitter {
         return
       }
 
-      //debug('Merkle Blocs synced at : ' + ((value.height/this.bestHeight)*100).toFixed(2)+ '%')
-      //debug('Heigh : ', value.height)
+      debug('Merkle Blocs synced at : ' + ((value.height/this.bestHeight)*100).toFixed(2)+ '%')
+      debug('Heigh : ', value.height)
 
       let flags = []
 
@@ -573,12 +563,19 @@ class SPVNode extends EventEmitter {
       var result = bmp.verify(merkle)
 
       // if doesn't throw it means that the merkle root is valid so we save this
+      // Do we really need to save the full merkle block or just a valid?
       this.merkles.put(hash.toString('hex'), merkleblockMessage, (err) => {
         if (err) throw err
 
-        this.merkles.put('height', {height: value.height, hash: value.hash}, function (err) {
-          if (err) throw err
-        })
+        // Update cache too
+        this.merkleHeight = value.height
+        this.merkleHash = value.hash
+
+        this.emit('newState', this._getCurrentState())
+
+        if (this.height === value.height) {
+          this.emit('synchronized')
+        }
 
         if (result.length > 0) {
           // TODO: update bloom filter ? Not sure...
@@ -599,8 +596,64 @@ class SPVNode extends EventEmitter {
 
   removePeer (peer) {
     if (this.peers.indexOf(peer) >= 0) {
-      console.log('Slice Peer :', this.peers.indexOf(peer))
+      debug('Slice Peer :', this.peers.indexOf(peer))
+      this.peers.slice(this.peers.indexOf(peer))
     }
+  }
+
+  _disconnectAllPeers () {
+    let promises = []
+
+    this.peers.map(function (peer) {
+      let promise = new Promise( function (resolve, reject) {
+        debug(`Disconnecting peer ${peer.ip}`)
+        peer.socket.end()
+      })
+
+      promises.push()
+    })
+
+    return Promise.all(promises)
+  }
+
+  _saveMerklesHeightInDb (height, hash) {
+    let promise = new Promise ((resolve, reject) => {
+      this.merkles.put('height', {height, hash}, (err) => {
+        if (err) throw err
+
+        debug('Merkle Height saved !')
+        resolve()
+      })
+    })
+
+    return promise
+  }
+
+  _saveHeightInDb (height, hash) {
+    let promise = new Promise ((resolve, reject) => {
+      this.headers.put('height', { height, hash}, (err) => {
+        if (err) throw err
+
+        debug('Header Height saved !')
+        resolve()
+      })
+    })
+
+    return promise
+  }
+
+
+  async shutdown () {
+    this._shutdown = true
+
+    // Shutting down so we are saving node state
+    await this._saveMerklesHeightInDb(this.merkleHeight, this.merkleHash)
+
+    // Shuting down so we save height
+    await this._saveHeightInDb(this.height, this.hash)
+
+    // End connection with all the peers
+    // await this._disconnectAllPeers()
   }
 
 }

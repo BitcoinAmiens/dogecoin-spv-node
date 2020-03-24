@@ -2,9 +2,9 @@
   "name": "spv-node",
   "version": "0.0.0",
   "description": "dogecoin",
-  "main": "main.js",
+  "main": "./bin/main.js",
   "scripts": {
-    "start": "DEBUG=*,-nodemon:* nodemon main.js",
+    "start": "DEBUG=*,-nodemon:*,-nodemon nodemon main.js",
     "bloom": "nodemon src/utils/bloom.js",
     "clean": "rm -rf data",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -13,6 +13,9 @@
     "ignore": [
       "test/*"
     ]
+  },
+  "bin": {
+    "dogecoin-spv": "./bin/main.js"
   },
   "keywords": [
     "dogecoin",
@@ -33,10 +36,12 @@
     "bloom-filter": "^0.2.0",
     "bs58": "^4.0.1",
     "bs58check": "^2.1.1",
-    "debug": "^3.1.0",
+    "debug": "^4.1.1",
     "ecdsa": "^0.7.0",
     "exp-net": "0.0.1",
+    "forever": "^2.0.0",
     "level": "^5.0.1",
+    "meow": "^6.1.0",
     "multicast-dns": "^7.0.0",
     "ripemd160": "^2.0.1",
     "secp256k1": "^3.7.1"

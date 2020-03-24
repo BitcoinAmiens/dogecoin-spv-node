@@ -1,3 +1,5 @@
+const network = require('./network')
+
 var settings = {
   regtest: {
     PROTOCOL_VERSION: 70004,
@@ -56,11 +58,11 @@ var settings = {
 
 var constants = settings.mainnet
 
-if (process.env.NETWORK === 'testnet') {
+if (process.env.NETWORK === network.TESTNET) {
   constants = settings.testnet
 }
 
-if (process.env.NETWORK === 'regtest') {
+if (process.env.NETWORK === network.REGTEST) {
   constants = settings.regtest
 }
 
