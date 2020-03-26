@@ -151,7 +151,6 @@ class Wallet extends EventEmitter {
     // It will be needed for filter (keeps same filter as nodes)
     this.txs.put(tx.id, tx, (err) => {
       if (err) { throw err }
-      debug('Added to tx')
     })
 
     // Look for input which use our unspent output
@@ -219,6 +218,8 @@ class Wallet extends EventEmitter {
     indexBuffer.writeInt32LE(index, 0)
 
     let output = tx.id + indexBuffer.toString('hex')
+
+    debug(`New tx : ${tx}`)
 
     // Save full tx in 'txs'
     this.txs.put(output, tx, (err) => {

@@ -33,8 +33,9 @@ async function main () {
   wallet.on('balance', function () {
     debug('BALANCE UPDATED!')
     wallet.getBalance()
-      .then(function (balance) {
-        debug('New Balance :', balance/constants.SATOSHIS)
+      .then(function (newBalance) {
+        debug('New Balance :', newBalance/constants.SATOSHIS)
+        balance = newBalance
       })
   })
 
@@ -108,12 +109,7 @@ async function main () {
   //await spvnode.addPeer(NODE_IP, constants.DEFAULT_PORT)
   // Initiate node and load database values
 
-  try {
-    await spvnode.start()
-  } catch (error) {
-    console.log(error)
-    process.exit()
-  }
+  await spvnode.start()
 
 
   // start synchronizing

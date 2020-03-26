@@ -1,3 +1,5 @@
+const constants = require('./src/constants')
+
 // Interface
 class Interface {
 
@@ -24,7 +26,8 @@ class Interface {
         data.hash,
         data.peers.length,
         data.tips,
-        data.merkleHeight
+        data.merkleHeight,
+        data.balance
       ))
 
       // Unlock interface
@@ -35,7 +38,13 @@ class Interface {
   format (height=0, bestHeight=0, hash=null, numberOfPeers=0, tips=new Map(), merkleHeight=0, balance=0) {
     const tipsArray = this._formatTipsMap(tips)
 
+    const report = process.resourceUsage()
+
     const layout = `
+================ Process Usage Report ================
+
+    fsRead: ${report.fsRead}  fsWrite: ${report.fsWrite}
+
 ================ SPV node ============================
 
     Height headers: ${height}/${bestHeight}
@@ -44,9 +53,9 @@ class Interface {
     Tips: ${JSON.stringify(tipsArray)}
     Merkle Height: ${merkleHeight}/${bestHeight}
 
-================ Wallet ============================
+================ Wallet =============================
 
-    Balance: ${balance}
+    Balance: ${balance/constants.SATOSHIS} Ð
 `
     this.numberOfLines = layout.split('\n').length
     return layout

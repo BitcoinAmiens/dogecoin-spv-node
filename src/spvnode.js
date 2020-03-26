@@ -27,6 +27,7 @@ class SPVNode extends EventEmitter {
   hash = null
   bestHeight = 0
   // Caching merkle block height for faster update
+  // FIXME: should be merkle count and not height. We can receive it in an incorrect order...
   merkleHeight = 0
   // need to be genesis block hash
   merkleHash = constants.GENESIS_BLOCK_HASH
@@ -37,10 +38,7 @@ class SPVNode extends EventEmitter {
 
     this.headers = level(__dirname + '/../data/spvnode/headers', {valueEncoding: 'json'})
     this.merkles = level(__dirname + '/../data/spvnode/merkles', {valueEncoding: 'json'})
-    // Should replace walletAddresses
-    // We only need unspent tx to know balance
-    // And use wallet db to keep track of addresses use
-    //this.wallet = level(__dirname + '/../data/wallet', {valueEncoding: 'json'})
+
     this.tips = new Map()
 
     // Prepare filter here
