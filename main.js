@@ -1,79 +1,148 @@
-var SPVNode = require('./src/spvnode')
-var Wallet = require('./src/wallet')
+const SPVNode = require('./src/spvnode')
+const Wallet = require('./src/wallet')
 const constants = require('./src/constants')
+const network = require('./src/network')
 const debug = require('debug')('main')
-const Interface = require('./interface')
+const Interface = require('./src/interface/interface')
+const Store = require('./src/store/store')
+
 const fs = require('fs')
+const path = require('path');
 
 // TODO: regtest IP node should be moved to constant
 const NODE_IP = '192.168.50.4'
-const AMOUNT = 2000 * constants.SATOSHIS
-// TODO: Create proper test
-const TO_ADDRESS = 'n3p9T8GtBwC6DSK1neCuE1XPs7ftroRx63'
-
 
 async function main () {
 
-  // Create data folder
+  //////////////////////////////////
+  //
+  // Create data folders for data
+  //
+  //////////////////////////////////
   if (!fs.existsSync(constants.DATA_FOLDER)) {
-    fs.mkdirSync(constants.DATA_FOLDER)
-    fs.mkdirSync(constants.DATA_FOLDER + '/spvnode')
-    fs.mkdirSync(constants.DATA_FOLDER + '/wallet')
+    fs.mkdirSync(constants.DATA_FOLDER, {recursive: true})
+    fs.mkdirSync(path.join(constants.DATA_FOLDER, 'spvnode'))
+    fs.mkdirSync(path.join(constants.DATA_FOLDER, 'wallet'))
   }
 
-  // Create interface
-  const interface = new Interface()
-
-  // Create wallet
+  //////////////////////////////////
+  //
+  // Create Wallet
+  //
+  //////////////////////////////////
   const wallet = new Wallet()
 
+  //////////////////////////////////
+  //
+  // Interface Store (keep track of all the data)
+  //
+  //////////////////////////////////
+  const store = new Store()
+
+
+  //////////////////////////////////
+  //
+  // Interface <--> Wallet functions
+  //
+  //////////////////////////////////
+
   // get balance
-  var balance = await wallet.getBalance()
+  wallet.getBalance()
+    .then(function (balance) {
+      store.setBalance(balance)
+    })
+
+  // Will be needed in the interface
+  const sendTransaction = (amount, address) => {
+    wallet.send(amount, address)
+      .then(function (rawTransaction) {
+        debug(rawTransaction)
+
+        spvnode.sendRawTransaction(rawTransaction)
+        debug('SENT !')
+      })
+    }
+
+  // Will be needed in the interface
+  const getAddress = () => { return wallet.getAddress() }
+
+  //////////////////////////////////
+  //
+  // Create Interface
+  //
+  //////////////////////////////////
+  const interface = new Interface({
+    store,
+    getAddress,
+    sendTransaction
+  })
+
+  //////////////////////////////////
+  //
+  // Event listeners !!!!!!!!!!
+  //
+  //////////////////////////////////
+
+  // Because of how weird javascript works we can have this before
+  // instanciating spvnode
+  interface.on('quit', async function () {
+    debug("'quit' event received from the interface")
+
+    if (spvnode.isShuttingDown()) {return}
+
+    await spvnode.shutdown()
+
+    process.exit()
+  })
+
 
   wallet.on('balance', function () {
     debug('BALANCE UPDATED!')
     wallet.getBalance()
       .then(function (newBalance) {
-        debug('New Balance :', newBalance/constants.SATOSHIS)
-        balance = newBalance
+        store.setBalance(newBalance)
       })
   })
 
   let pubkeyHashes = []
   wallet.pubkeyHashes.forEach(function (value, key) {
+    // TODO: remove change addresses. This is not needed in the filter ?
     pubkeyHashes.push(key.toString('hex'))
   })
 
+  //////////////////////////////////
+  //
+  // Create SPV node
+  //
+  //////////////////////////////////
   var spvnode = new SPVNode(pubkeyHashes)
 
+
+  //////////////////////////////////
+  //
+  // More listeners !!!!!!
+  //
+  //////////////////////////////////
+
   spvnode.on('tx', function (tx) {
-    // Register tx to wallet!
+    // Register tx to wallet! Maybe it ours... maybe not
     wallet.addTxToWallet(tx)
   })
 
-  spvnode.on('synchronized', function () {
+  spvnode.on('synchronized', function (newData) {
     debug('Our node is synchronized')
-
-    wallet.getBalance()
-      .then(function (balance) {
-        debug(balance/constants.SATOSHIS)
-      })
-
-    /*wallet.send(AMOUNT, TO_ADDRESS)
-      .then(function (rawTransaction) {
-        debug(rawTransaction)
-        //spvnode.sendRawTransaction(rawTransaction)
-      })*/
-
+    store.setSPVState(newData)
   })
 
   spvnode.on('newState', function (newData) {
-    newData = {
-      ...newData,
-      balance
-    }
-    interface.update(newData)
+    store.setSPVState(newData)
   })
+
+  //////////////////////////////////
+  //
+  // Stopping this damn app
+  //
+  //////////////////////////////////
 
   //catches ctrl+c event
   process.on('SIGINT', async function () {
@@ -102,15 +171,18 @@ async function main () {
     process.exit()
   })
 
-  // TODO: Start regtest or testnet
-  // process.env.NETWORK
+  //////////////////////////////////
+  //
+  // Staring this damn app
+  //
+  //////////////////////////////////
 
   // Add regtest peer
-  //await spvnode.addPeer(NODE_IP, constants.DEFAULT_PORT)
-  // Initiate node and load database values
+  if (process.env.NETWORK === network.REGTEST) {
+    await spvnode.addPeer(NODE_IP, constants.DEFAULT_PORT)
+  }
 
   await spvnode.start()
-
 
   // start synchronizing
   await spvnode.synchronize()

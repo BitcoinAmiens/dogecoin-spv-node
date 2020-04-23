@@ -1,7 +1,9 @@
 const network = require('./network')
+const path = require('path');
 
 var settings = {
   regtest: {
+    DATA_SUBFOLDER: 'regtest',
     PROTOCOL_VERSION: 70004,
     MAGIC_BYTES: 0xdab5bffa, //  0xdcb7c1fc
     SATOSHIS: 100000000,
@@ -19,6 +21,7 @@ var settings = {
     }
   },
   testnet: {
+    DATA_SUBFOLDER: 'testnet',
     PROTOCOL_VERSION: 70004,
     MAGIC_BYTES: 0xdcb7c1fc,
     SATOSHIS: 100000000,
@@ -37,6 +40,7 @@ var settings = {
     }
   },
   mainnet: {
+    DATA_SUBFOLDER: '.',
     PROTOCOL_VERSION: 70004,
     MAGIC_BYTES: 'NO',
     SATOSHIS: 100000000,
@@ -66,6 +70,6 @@ if (process.env.NETWORK === network.REGTEST) {
   constants = settings.regtest
 }
 
-constants.DATA_FOLDER = __dirname + '/../data'
+constants.DATA_FOLDER = path.join(__dirname, '..', 'data', constants.DATA_SUBFOLDER)
 
 module.exports = constants

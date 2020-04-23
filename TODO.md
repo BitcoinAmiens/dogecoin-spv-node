@@ -6,13 +6,16 @@
 - [ ] Create proper class for message
 - [ ] Test framework (Avajs minimalist test framework https://github.com/avajs/ava)
 - [ ] Tor mode (but then filter need to be randomize)
-- [ ] We should calculate balance from unspent tx in wallet
+- [x] We should calculate balance from unspent tx in wallet
 - ~~[ ] Daemonize~~ (not here directly)
 - [ ] Create a CLI (see `bin` folder)
 - [ ] Fill mainnet DNS values
 - [ ] Different database folder for regtest/testnet/mainnet
 - [ ] Adding `--no-interface` argument
-- [ ] Clean cursor color (avoid glitching effect)
-- [ ] When stopping the application properly clean interface
+- [x] Clean cursor color (avoid glitching effect)
+- [x] When stopping the application properly clean interface
 - [ ] Use `net.createServer` to create a proper server and not having the app closing when no more peers ( pros can share addr and while server is listening app wont stop, cons we are not a full node and need to open port to accept connection)
 - [ ] Solve ressources problem (app crash need to slow down or use workers ?)
+- [ ] Source structures seperate spvnode, wallet and interface.
+- [ ] Create a class for each "Screen" of the interface
+- [x] Keep counting erkle block for interface (or it looks like it is frozen)

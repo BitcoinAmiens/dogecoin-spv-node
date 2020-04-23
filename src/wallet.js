@@ -22,18 +22,17 @@ var level = require('level')
 const constants = require('./constants')
 const pubkeyToAddress = require('./utils/pubkeyToAddress')
 
-const SEED_FILE = path.join("data","seed.json")
+const SEED_FILE = path.join('data','seed.json')
 
 // HD wallet for dogecoin
 class Wallet extends EventEmitter {
   constructor () {
     super()
 
-    this.addresses = []
     this.pubkeys = new Map()
     this.pubkeyHashes = new Map()
-    this.unspentOutputs = level(__dirname + '/../data/wallet/unspent', {valueEncoding: 'json'})
-    this.txs = level(__dirname + '/../data/wallet/tx', {valueEncoding: 'json'})
+    this.unspentOutputs = level(path.join(constants.DATA_FOLDER, 'wallet', 'unspent'), {valueEncoding: 'json'})
+    this.txs = level(path.join(constants.DATA_FOLDER, 'wallet', 'tx'), {valueEncoding: 'json'})
 
     // ONLY USE FOR REGTEST AND TESTNET !
     this._mnemonic = "neutral acoustic balance describe access pitch tourist skull recycle nation silent crawl"
@@ -53,14 +52,11 @@ class Wallet extends EventEmitter {
       this.generateAddress()
     }
 
-    // Do we also need the change address ?
-    // I don't think so we only need to follow the tx!
-    // If it is a change address it will only be an output from a transaction
-    // we will send
-    /*for (let i = 0; i < 20; i++) {
+    // We need so the pubkey hashes are updated
+    for (let i = 0; i < 20; i++) {
       // We need 20 addresses for bloom filter to protect privacy and it is a standard
       console.log(this.generateChangeAddress())
-    }*/
+    }
   }
 
   _createSeedFile () {
@@ -77,7 +73,7 @@ class Wallet extends EventEmitter {
   _generateMnemonic () {
     if (this._mnemonic) {
 
-      console.log("You already have a mnemonic registered")
+      debug("You already have a mnemonic registered")
       return false
     }
     this._mnemonic = bip39.generateMnemonic()
@@ -103,8 +99,8 @@ class Wallet extends EventEmitter {
     return pubKeyHash
   }
 
-  _updatePubkeysState (index, publicKey, changeAddress=0) {
-    this.pubkeys.set(publicKey.toString('hex'), {index, changeAddress})
+  _updatePubkeysState (index, publicKey, changeAddress = 0) {
+    this.pubkeys.set(publicKey.toString('hex'), {index, changeAddress, used: false})
     const pubKeyHash = this._pubkeyToPubkeyHash(publicKey)
     this.pubkeyHashes.set(pubKeyHash.toString('hex'), {publicKey, index, changeAddress})
   }
@@ -122,6 +118,7 @@ class Wallet extends EventEmitter {
     return await new Promise((resolve, reject) => {
       this.unspentOutputs.createReadStream()
         .on('data', function (data) {
+          debug(data)
           balance += data.value.value
         })
         .on('error', function (err) { reject(err) })
@@ -138,12 +135,17 @@ class Wallet extends EventEmitter {
     return child1.publicKey
   }
 
-  // TODO: NOT GOOD
   getAddress () {
-    const path = "m/44'/1'/0'/0/0"
-    const root = bip32.fromSeed(this._seed, constants.WALLET)
-    const child1 = root.derivePath(path)
-    return pubkeyToAddress(child1.publicKey)
+    const iterator = this.pubkeys[Symbol.iterator]()
+
+    let pk
+    for (let pubkey of iterator) {
+      if (!pubkey[1].used) {
+        pk = pubkey[0]
+      }
+    }
+
+    return pubkeyToAddress(Buffer.from(pk, 'hex'))
   }
 
   addTxToWallet (tx) {
@@ -171,6 +173,7 @@ class Wallet extends EventEmitter {
           this.unspentOutputs.del(previousOutput, (err) => {
             if (err) throw err
 
+            // TODO: cache balance
             this.emit('balance')
           })
         }
@@ -178,7 +181,6 @@ class Wallet extends EventEmitter {
     })
 
 
-  // TODO: need to verify if address belongs to wallet
   // And we actually need txOuts records not txs stupid (:heart:)
   // Do we actually want to do that bit here ? Might be interesting to have it in the main app
   // because in the future we want to decouple spvnode and wallet.
@@ -244,7 +246,7 @@ class Wallet extends EventEmitter {
     const child = root.derivePath(path)
     let address = pubkeyToAddress(child.publicKey)
     this._updatePubkeysState(index, child.publicKey, changeAddress ? 1 : 0)
-    //this.pubkeys.push(child.publicKey.toString('hex'))
+
     return address
   }
 
@@ -333,7 +335,7 @@ class Wallet extends EventEmitter {
       })
     })
 
-    console.log(transaction)
+    debug(transaction)
 
     // This need to be improved !
     let test = bs58check.decode(to).slice(1)

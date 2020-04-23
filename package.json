@@ -4,7 +4,8 @@
   "description": "dogecoin",
   "main": "./bin/main.js",
   "scripts": {
-    "start": "DEBUG=*,-nodemon:*,-nodemon nodemon main.js",
+    "start": "DEBUG=*,-nodemon:*,-nodemon node main.js",
+    "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon main.js",
     "bloom": "nodemon src/utils/bloom.js",
     "clean": "rm -rf data",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -40,7 +41,7 @@
     "ecdsa": "^0.7.0",
     "exp-net": "0.0.1",
     "forever": "^2.0.0",
-    "level": "^5.0.1",
+    "level": "^6.0.0",
     "meow": "^6.1.0",
     "multicast-dns": "^7.0.0",
     "ripemd160": "^2.0.1",

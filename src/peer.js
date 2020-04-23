@@ -343,12 +343,19 @@ class Peer extends EventEmitter {
     var payload = inv.encodeInvMessage(invMessage, 3)
 
     this._updateBlocks(invMessage.inventory)
-    this.sendGetData(payload)
+      .then(() => {
+        // We have the headers we are ready to receive the merkle blocks
+        this.sendGetData(payload)
+      })
+      .catch(() => {
+        debug('We got an inventory for which we don\'t have header')
+      })
+
   }
 
   // TODO: Better name not clear with the `s`
   _updateBlocks (newBlocks) {
-    this.node.updateBlocks(newBlocks)
+    return this.node.updateBlocks(newBlocks)
   }
 
   _handleMerkleblock (merkleblockMessage) {
