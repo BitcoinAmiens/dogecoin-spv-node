@@ -6,7 +6,6 @@
   "scripts": {
     "start": "DEBUG=*,-nodemon:*,-nodemon node main.js",
     "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon main.js",
-    "bloom": "nodemon src/utils/bloom.js",
     "clean": "rm -rf data",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

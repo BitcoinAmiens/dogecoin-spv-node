@@ -312,10 +312,8 @@ class Peer extends EventEmitter {
 
   _handleInvMessage (invMessage) {
 
-    // It just notified us of a new bock. For now we dont care
-    // BUT NOW WE DO!
-    // BUT IT COULD BE MEMPOOL!
-    // NEED TO CHECK
+    // It just notified us of a new bock.
+    // TODO: We don't need this anymore
     if (invMessage.count === 1) {
       if (invMessage.inventory[0].type == 'MSG_TX') {
         // If it is mempool update message dont do anything for now
@@ -323,17 +321,35 @@ class Peer extends EventEmitter {
       }
 
       // 2 because we want MSG_BLOCK
-      let payload = inv.encodeInvMessage(invMessage, 2)
+      //let payload = inv.encodeInvMessage(invMessage, 2)
 
       // Not working on regtest!!!
       // We are missing messages
-      // Fuck it we are still using it
-
+      debug(invMessage)
+      // Not good because can be sent in disorder..
       //this.sendGetData(payload)
 
-      //this.node.sendGetHeaders()
+      // If not synchronize, we don't process yet
+      if (!this.node.isSynchonized()) {
+        debug("Not time to accept this")
+        return
+      }
 
-      return
+      // We have a problem because they almost happened simultanously
+      this.node.isHeaderInDB(invMessage.inventory[0].hash)
+        .then((result) => {
+          if (!result) {
+            // Ask for new headers if we don't have
+            // this.node.sendGetHeaders()
+            // Merkle block has headers so we can add them !
+            return
+          } else {
+            debug("We have it in db")
+          }
+        })
+        .catch(function(err) {
+          throw err
+        })
     }
 
     debug('Peer n° %s received inv message', this.id)
@@ -345,7 +361,12 @@ class Peer extends EventEmitter {
     this._updateBlocks(invMessage.inventory)
       .then(() => {
         // We have the headers we are ready to receive the merkle blocks
-        this.sendGetData(payload)
+        try {
+          this.sendGetData(payload)
+        } catch (exception) {
+          debug('Wut')
+          console.log(exception)
+        }
       })
       .catch(() => {
         debug('We got an inventory for which we don\'t have header')

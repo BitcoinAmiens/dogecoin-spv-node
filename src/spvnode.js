@@ -9,8 +9,9 @@ const dns = require('dns')
 const constants = require('./constants')
 const pubkeyToAddress = require('./utils/pubkeyToAddress')
 const doubleHash = require('./utils/doubleHash')
+const decodeHeader = require('./utils/decodeHeader')
 const fs = require('fs')
-const path = require('path');
+const path = require('path')
 
 // slow nodes
 const BAN_LIST = ['198.58.102.18']
@@ -19,6 +20,9 @@ const BAN_LIST = ['198.58.102.18']
 class SPVNode extends EventEmitter {
 
   _shutdown = false
+  // Is it synchronized
+  _synchronized = false
+  // Peers list
   peers = []
   // Follow header heigh
   height = 0
@@ -67,10 +71,15 @@ class SPVNode extends EventEmitter {
     return this._shutdown
   }
 
+  isSynchonized () {
+    return this._synchronized
+  }
+
   _getTipsFromDB () {
     let promise = new Promise((resolve, reject) => {
       this.tipsDB.createReadStream()
         .on('data', (data) => {
+          debug(data.value)
           this.tips.set(data.key, data.value)
         })
         .on('error', function (err) { reject(err) })
@@ -211,7 +220,6 @@ class SPVNode extends EventEmitter {
     if (this.tips.size === 0) { hashes = [this.hash] }
 
 
-    // should be tips !
     this._sendGetHeaders(hashes)
   }
 
@@ -224,6 +232,28 @@ class SPVNode extends EventEmitter {
     let peer = this.peers[rand]
 
     peer.sendGetHeader(hashes)
+  }
+
+  sendGetHeaders () {
+    let hashes = [...this.tips.keys()]
+
+    if (this.tips.size === 0) { hashes = [this.hash] }
+
+    this._sendGetHeaders(hashes)
+  }
+
+  isHeaderInDB (hash) {
+    return new Promise((resolve, reject) => {
+      this.headers.get(hash, (err, value) => {
+        if (err && err.type !== 'NotFoundError') { reject(err) }
+
+        if (err && err.type === 'NotFoundError') {
+          resolve(false)
+        } else {
+          resolve(true)
+        }
+      })
+    })
   }
 
   _sendGetBlocks (hashes) {
@@ -383,7 +413,9 @@ class SPVNode extends EventEmitter {
           return
         }
 
+        debug('Is Synchronized !!!')
         this.emit('synchronized', this._getCurrentState())
+        this._synchronized = true
       })
 
       return
@@ -455,6 +487,19 @@ class SPVNode extends EventEmitter {
 
       if (this.tips.size > 1) {
         debug('We have a fork !')
+
+        let hash = null,
+            header = undefined
+        for (var [key, value] of this.tips) {
+          if (header && header.height > value.height) {
+            this.tips.delete(key)
+          } else {
+            if (hash) { this.tips.delete(hash) }
+            hash = key
+            header = value
+          }
+        }
+
         debug(this.tips)
       }
 
@@ -480,7 +525,7 @@ class SPVNode extends EventEmitter {
       // TODO : Not sure what is used for ^
 
       if (value[1].height !== newBestHeight) {
-        throw Error('wrong hash for this height')
+        throw Error(`wrong hash for this height ${value[1].height} -> ${newBestHeight}`)
       }
 
       this.updateHeight(newBestHeight, value[0])
@@ -551,18 +596,23 @@ class SPVNode extends EventEmitter {
     return new Promise((resolve, reject) => {
       // Should probably verify all the headers (using `createReadStream`)
       this.headers.get(newBlocks[newBlocks.length - 1].hash, (err, value) => {
-        if (err) {
+        if (err && err.type !== 'NotFoundError') {
           // Receiving INV cmd from new block which I don't have the headers saved yet---
           // throw err
           debug(newBlocks)
+          debug(err)
+
           reject()
 
           return
         }
 
-        this.merkleBlockCount = newBlocks.length
-        this.merkleBlockBatchSize = newBlocks.length
-        this.merkleBlockNextHash = newBlocks[newBlocks.length - 1].hash
+        // Only update if we haven't asked this yet
+        if (this.merkleBlockNextHash !== newBlocks[newBlocks.length - 1].hash) {
+          this.merkleBlockCount = newBlocks.length
+          this.merkleBlockBatchSize = newBlocks.length
+          this.merkleBlockNextHash = newBlocks[newBlocks.length - 1].hash
+        }
 
         resolve()
       })
@@ -577,11 +627,57 @@ class SPVNode extends EventEmitter {
     }
 
     this.headers.get(hash.toString('hex'), (err, value) => {
-      if (err) {
+      if (err && err.type === 'NotFoundError') {
         // Send you not yet registered merkle block... but we don't have the header yet
-        // console.log(hash)
-        // console.log('Unknown header...')
+        debug('Unknown header... ' + hash.toString('hex'))
+
+        // Do we have the precendent hash ?
+        const header = decodeHeader(Buffer.from(merkleblockMessage.blockHeader.slice(0, 80)))
+
+        let newBestHeight = this.height
+
+        this.headers.get(header.previousHash, (err, value) => {
+          if (err && err.type !== 'NotFoundError') {
+            throw err
+          }
+
+          // If we are still synchronizing don't register new header
+          if (!this.isSynchonized()) { return }
+
+          // We update the header with the new block
+          // debug(value)
+          // TODO: 'updateTips' function
+          let tip = this.tips.get(header.previousHash)
+
+          if (tip) {
+            header.height = tip.height + 1
+            if (newBestHeight < header.height) {
+              newBestHeight = header.height
+            }
+
+            this.tips.delete(header.previousHash)
+          }
+
+          this.tips.set(header.hash, header)
+          this.emit('newState', this._getCurrentState())
+
+          this.headers.put(header.hash, header, (err) => {
+              if (err) throw err
+
+              debug("Header registered. Updating node state.")
+              this.updateHeight(newBestHeight, header.hash)
+              this.merkleHeight = header.height
+              this.merkleHash = header.hash
+          })
+        })
+
         return
+      }
+
+      // Still throw if we have an error
+      if (err) {
+
+        throw err
       }
 
       debug('Merkle Blocs synced at : ' + ((value.height/this.bestHeight)*100).toFixed(2)+ '%')
@@ -614,19 +710,24 @@ class SPVNode extends EventEmitter {
 
       if (this.merkleBlockCount === 0) {
 
-        // This should be done once we have cleared alll the merkle blocks
+        // This should be done once we have cleared all the merkle blocks
         this._sendGetBlocks([this.merkleBlockNextHash])
 
         // Update cache only when we verifly all the merkle blocks from the inv call
         this.merkleHeight = value.height
         this.merkleHash = value.hash
 
+        // Maybe get merkleBlockNextHash from headers DB to get the height,
+        // because we might receive out of order
+        if (this.height === value.height) {
+            debug('Is Synchronized !!!')
+            this.emit('synchronized', this._getCurrentState())
+            this._synchronized = true
+        }
+
         return
       }
 
-      if (this.height === value.height) {
-          this.emit('synchronized')
-      }
     })
   }
 

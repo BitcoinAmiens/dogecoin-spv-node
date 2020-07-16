@@ -20,6 +20,8 @@ class Store extends EventEmitter {
   }
 
   setSPVState (data) {
+    if (data === undefined) { throw new Error("Received 'undefined' set of data") }
+
     this.height = data.height
     this.bestHeight = data.bestHeight
     this.hash = data.hash

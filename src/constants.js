@@ -42,7 +42,7 @@ var settings = {
   mainnet: {
     DATA_SUBFOLDER: '.',
     PROTOCOL_VERSION: 70004,
-    MAGIC_BYTES: 'NO',
+    MAGIC_BYTES: 0xc0c0c0c0,
     SATOSHIS: 100000000,
     GENESIS_BLOCK_HASH: 'NO',
     PREVIOUS_HEADER: 'NO',
