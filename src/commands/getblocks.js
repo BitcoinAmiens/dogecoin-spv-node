@@ -3,7 +3,7 @@ const {PROTOCOL_VERSION} = require('../constants')
 
 // https://bitcoin.org/en/developer-reference#getblocks
 // getHeaders is similar to getBlock
-function encodeGetblocksMessage (blockHash) {
+function encodeGetblocksMessage (blockHash, lastHash) {
   var hashCount = blockHash.length
 
   const buffer = Buffer.alloc(4 + 32 + hashCount + hashCount * 32)
@@ -24,7 +24,7 @@ function encodeGetblocksMessage (blockHash) {
   }
 
   // Stop hash is full of zeroes which means send me MAX_LIMIT
-  const stopHashBuffer = Buffer.alloc(32)
+  const stopHashBuffer = Buffer.from(lastHash, 'hex')
   stopHashBuffer.copy(buffer, offset)
 
   return buffer

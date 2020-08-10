@@ -10,7 +10,7 @@
 - ~~[ ] Daemonize~~ (not here directly)
 - [ ] Create a CLI (see `bin` folder)
 - [ ] Fill mainnet DNS values
-- [ ] Different database folder for regtest/testnet/mainnet
+- [x] Different database folder for regtest/testnet/mainnet
 - [ ] Adding `--no-interface` argument
 - [x] Clean cursor color (avoid glitching effect)
 - [x] When stopping the application properly clean interface

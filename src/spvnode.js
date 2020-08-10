@@ -22,6 +22,8 @@ class SPVNode extends EventEmitter {
   _shutdown = false
   // Is it synchronized
   _synchronized = false
+  // Are we already synchronizing merkle blocks ?
+  _merkleSynchronizing = false
   // Peers list
   peers = []
   // Follow header heigh
@@ -71,10 +73,14 @@ class SPVNode extends EventEmitter {
     return this._shutdown
   }
 
-  isSynchonized () {
+  isSynchronized () {
     return this._synchronized
   }
-
+  
+  isMerkleSynchronizing () {
+    return this._merkleSynchronizing
+  }
+  
   _getTipsFromDB () {
     let promise = new Promise((resolve, reject) => {
       this.tipsDB.createReadStream()
@@ -331,6 +337,7 @@ class SPVNode extends EventEmitter {
 
   // Process new block
   // What happened if we have 2 new blocks in message ?
+  // REVIEW: Do we actually used this ?
   processBlock (newBlock) {
     // TODO: verify we haven't saved it yet ?
 
@@ -399,24 +406,23 @@ class SPVNode extends EventEmitter {
 
     if (!headersMessage.count) {
       // if the message is empty nothing to update here
+      debug('Got an empty headers message...')
 
-      this.merkles.get('height', (err, value) => {
-        if (err) throw err
-
-        debug('Got an empty headers message...')
-
-        /* NOT GOOD! you cant start from the height of headers... We need precedent blocks.*/
-        if (value.height < this.bestHeight) {
-          // Need getBlocks because we cannot ask directly using the headers. We are
-          // not sure of what the full node has or if has been pruned ?
-          this._sendGetBlocks([value.hash])
-          return
-        }
-
-        debug('Is Synchronized !!!')
-        this.emit('synchronized', this._getCurrentState())
+      if (this.merkleHeight < this.bestHeight) {
         this._synchronized = true
-      })
+        if (this.isMerkleSynchronizing()) { return }
+          
+        this._merkleSynchronizing = true
+          
+        // Need getBlocks because we cannot ask directly using the headers. We are
+        // not sure of what the full node has or if has been pruned ?
+        this._sendGetBlocks([this.merkleHash])
+        return
+      }
+
+      debug('Is Fully Synchronized !!!')
+      this.emit('synchronized', this._getCurrentState())
+      this._synchronized = true
 
       return
     }
@@ -497,6 +503,7 @@ class SPVNode extends EventEmitter {
             if (hash) { this.tips.delete(hash) }
             hash = key
             header = value
+            newBestHeight = value.height
           }
         }
 
@@ -515,108 +522,108 @@ class SPVNode extends EventEmitter {
       })
     }
 
-    this.headers.batch(ops, (err) => {
-      if (err) throw err
+    // Register everything in db
+    await this.headers.batch(ops)
+    
+    // Should keep a map of height --> hash
+    var iterator = this.tips.entries()
+    var value = iterator.next().value
 
-      // Should keep a map of height --> hash
-      var iterator = this.tips.entries()
-      var value = iterator.next().value
+    // TODO : Not sure what is used for ^
 
-      // TODO : Not sure what is used for ^
+    if (value[1].height !== newBestHeight) {
+      throw Error(`wrong hash for this height ${value[1].height} -> ${newBestHeight}`)
+    }
 
-      if (value[1].height !== newBestHeight) {
-        throw Error(`wrong hash for this height ${value[1].height} -> ${newBestHeight}`)
+    this.updateHeight(newBestHeight, value[0])
+
+    // Show pourcentage
+    debug('Sync at ' + ((this.height/this.bestHeight)*100).toFixed(2)+ '%')
+    debug('Height :', this.height)
+
+    var finishSyncHeader = true
+
+    if (this.bestHeight > this.height) {
+
+      let hashesNotSorted = []
+      let hashes = []
+
+      this.tips.forEach(function (value, key, map) {
+        if (value.height > 0) {
+          hashesNotSorted.push(value)
+          }
+      })
+
+      hashesNotSorted.sort(function (a, b) {
+        return b.height - a.height
+      })
+
+      for (const value of hashesNotSorted) {
+        hashes.push(value.hash)
       }
 
-      this.updateHeight(newBestHeight, value[0])
+      finishSyncHeader = false
 
-      // Show pourcentage
-      debug('Sync at ' + ((this.height/this.bestHeight)*100).toFixed(2)+ '%')
-      debug('Height :', this.height)
+      this._sendGetHeaders(hashes)
+    }
 
-      var finishSyncHeader = true
+    // If no more headers we can start asking for the rest
+    if (finishSyncHeader) {        
+      if (this.merkleHeight < this.bestHeight) {
+        this._synchronized = true
+        debug("Asking for merkle blocs")      
+              
+        if (this.isMerkleSynchronizing()) { debug("But we are still synchronizing merkle block"); return; }
+              
+        this._merkleSynchronizing = true
+              
+        // Need getBlocks because we cannot ask directly using the headers. We are
+        // not sure of what the full node has or if has been pruned ?
+        this._sendGetBlocks([this.merkleHash])
 
-      if (this.bestHeight > this.height) {
-
-        let hashesNotSorted = []
-        let hashes = []
-
-        this.tips.forEach(function (value, key, map) {
-          if (value.height > 0) {
-            hashesNotSorted.push(value)
-          }
-        })
-
-        hashesNotSorted.sort(function (a, b) {
-          return b.height - a.height
-        })
-
-        hashesNotSorted.forEach(function (value) {
-          hashes.push(value.hash)
-        })
-
-        finishSyncHeader = false
-
-        this._sendGetHeaders(hashes)
+        return
       }
+    }
 
-      // If no more headers we can start asking for the rest
-      if (finishSyncHeader) {
-        this.merkles.get('height', (err, value) => {
-          if (err && err.type !== 'NotFoundError') throw err
-
-          if (err && err.type === 'NotFoundError') {
-            value = {
-              height: 0,
-              hash: constants.GENESIS_BLOCK_HASH
-            }
-          }
-
-          this.merkleHeight = value.height
-          this.merkleHash = value.hash
-
-          if (value.height < this.bestHeight) {
-
-            // Need getBlocks because we cannot ask directly using the headers. We are
-            // not sure of what the full node has or if has been pruned ?
-            this._sendGetBlocks([value.hash])
-
-            return
-          }
-
-        })
-      }
-
-    })
   }
 
   // Actually verify inventory
-  updateBlocks (newBlocks) {
-
-    return new Promise((resolve, reject) => {
-      // Should probably verify all the headers (using `createReadStream`)
-      this.headers.get(newBlocks[newBlocks.length - 1].hash, (err, value) => {
-        if (err && err.type !== 'NotFoundError') {
-          // Receiving INV cmd from new block which I don't have the headers saved yet---
-          // throw err
-          debug(newBlocks)
-          debug(err)
-
-          reject()
-
-          return
+  async updateBlocks (newBlocks) {
+    
+    let invBlocks = []
+    let result
+    
+    // Optimize with Promise.all()
+    for (let block of newBlocks) {
+      try {
+        result = await this.headers.get(block.hash)
+      } catch (err) {
+        if (err.notFound) {
+          result = null
+        } else {
+          throw err
         }
+      }
+        
+      if (result) {
+        invBlocks.push(block)
+      }
+    }
+    
+    // if invBlocks length is 0
+    // well return empty [] and don't send the message
+    
+    // Only update if we haven't asked this yet
+    if (this.merkleBlockNextHash !== invBlocks[invBlocks.length - 1].hash) {
+      this.merkleBlockCount = invBlocks.length
+      this.merkleBlockBatchSize = invBlocks.length
+      this.merkleBlockNextHash = invBlocks[invBlocks.length - 1].hash
+    }
+    
+    debug("Merkle Hash updated : " + this.merkleBlockNextHash )
 
-        // Only update if we haven't asked this yet
-        if (this.merkleBlockNextHash !== newBlocks[newBlocks.length - 1].hash) {
-          this.merkleBlockCount = newBlocks.length
-          this.merkleBlockBatchSize = newBlocks.length
-          this.merkleBlockNextHash = newBlocks[newBlocks.length - 1].hash
-        }
-
-        resolve()
-      })
-    })
+    
+    return invBlocks
   }
 
   updateMerkleBlock (merkleblockMessage) {
@@ -627,7 +634,7 @@ class SPVNode extends EventEmitter {
     }
 
     this.headers.get(hash.toString('hex'), (err, value) => {
-      if (err && err.type === 'NotFoundError') {
+      /*if (err && err.type === 'NotFoundError') {
         // Send you not yet registered merkle block... but we don't have the header yet
         debug('Unknown header... ' + hash.toString('hex'))
 
@@ -642,7 +649,7 @@ class SPVNode extends EventEmitter {
           }
 
           // If we are still synchronizing don't register new header
-          if (!this.isSynchonized()) { return }
+          if (!this.isSynchonized()) { debug("Still processing headers"); return }
 
           // We update the header with the new block
           // debug(value)
@@ -672,11 +679,17 @@ class SPVNode extends EventEmitter {
         })
 
         return
+      }*/
+      
+      if (err && err.type === 'NotFoundError') {
+        debug(hash.toString('hex'))
+        debug("Merkle Block sent but header not found")
+        
+        return
       }
 
       // Still throw if we have an error
       if (err) {
-
         throw err
       }
 
@@ -698,31 +711,30 @@ class SPVNode extends EventEmitter {
 
       var result = bmp.verify(merkle)
 
-      // if doesn't throw it means that the merkle root is valid so we save this
-      // Do we really need to save the full merkle block or just a valid?
-      /*this.merkles.put(hash.toString('hex'), merkleblockMessage, (err) => {
-        if (err) throw err
-      })*/
 
       this.merkleBlockCount -= 1
 
       this.emit('newState', this._getCurrentState())
 
-      if (this.merkleBlockCount === 0) {
 
+      if (this.merkleBlockCount === 0) {
+        
         // This should be done once we have cleared all the merkle blocks
         this._sendGetBlocks([this.merkleBlockNextHash])
 
         // Update cache only when we verifly all the merkle blocks from the inv call
+        this.merkleBlockBatchSize = 0
         this.merkleHeight = value.height
         this.merkleHash = value.hash
 
         // Maybe get merkleBlockNextHash from headers DB to get the height,
         // because we might receive out of order
         if (this.height === value.height) {
-            debug('Is Synchronized !!!')
+            debug('Is Fully Synchronized !!!')
             this.emit('synchronized', this._getCurrentState())
-            this._synchronized = true
+            this._merkleSynchronizing = false
+            
+            return
         }
 
         return

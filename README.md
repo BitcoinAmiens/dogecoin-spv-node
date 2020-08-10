@@ -2,20 +2,41 @@
 
 A simple spv node for Dogecoin.
 
-## Development
+## Development (regtest)
 
-Start the vagrantbox :
+You will need docker installed.
+
+Build the docker image:
 ```
-$ vagrant up
+$ make build
 ```
 
-It will start the dogecoind in regtest mode.
+Start the docker container:
+```
+$ make regtest
+```
+
+Restart the container (in case you stopped the container and want to continue developpment):
+```
+$ make restart
+```
+
+Generate 5 blocks:
+```
+$ make generate
+```
+
+Start the spvnoce in regtest mode:
+```
+NETWORK=regtest npm start
+```
 
 ## Development in Testnet Network
 
 ```
 NETWORK=testnet npm start
 ```
+
 
 ## See debug log
 

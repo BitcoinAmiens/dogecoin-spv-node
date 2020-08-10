@@ -10,7 +10,7 @@ const fs = require('fs')
 const path = require('path');
 
 // TODO: regtest IP node should be moved to constant
-const NODE_IP = '192.168.50.4'
+const NODE_IP = '127.0.0.1'
 
 async function main () {
 

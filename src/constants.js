@@ -5,7 +5,7 @@ var settings = {
   regtest: {
     DATA_SUBFOLDER: 'regtest',
     PROTOCOL_VERSION: 70004,
-    MAGIC_BYTES: 0xdab5bffa, //  0xdcb7c1fc
+    MAGIC_BYTES: 0xdab5bffa,
     SATOSHIS: 100000000,
     GENESIS_BLOCK_HASH: '3d2160a3b5dc4a9d62e7e66a295f70313ac808440ef7400d6c0772171ce973a5',
     PREVIOUS_HEADER: 'a573e91c1772076c0d40f70e4408c83a31705f296ae6e7629d4adcb5a360213d',
@@ -13,7 +13,7 @@ var settings = {
     NETWORK_BYTE: '6f',
     PATH: '44\'/1\'/0\'/',
     WALLET: {
-      wif: 0xEF, // 0xEF
+      wif: 0xEF,
       bip32: {
           public: 0x043587CF,
           private: 0x04358394,
