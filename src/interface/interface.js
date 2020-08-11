@@ -3,7 +3,7 @@ const KEYS = require('./keys')
 const terminalStyle = require('./terminalStyle')
 const EventEmitter = require('events')
 
-// TODO: rename to screen and insteadof INDEX call it MAIN
+// TODO: rename to screen and instead of INDEX call it MAIN
 const WINDOWS = {
   INDEX: 0,
   GENERATE_ADDRESS: 1,
@@ -129,7 +129,7 @@ class Interface extends EventEmitter {
 
   _quit () {
     process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines-1), () => {
-      process.stdout.write(terminalStyle.CLEAR)
+      process.stdout.write(`${terminalStyle.CLEAR}${terminalStyle.SHOW_CURSOR}`)
       // clean screen then quit
       this.emit('quit')
     })

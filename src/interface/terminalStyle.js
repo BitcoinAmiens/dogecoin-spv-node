@@ -6,6 +6,7 @@ const terminalStyle = {
   WHITE_BACKGROUND: '\x1b[47m',
   BOLD: '\x1b[1m',
   NO_CURSOR: '\x1B[?25l',
+  SHOW_CURSOR: '\x1B[?25h',
   CLEAR: '\x1b[J',
   SCROLL_UP: '\x1b[1J'
 }
