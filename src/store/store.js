@@ -8,6 +8,7 @@ class Store extends EventEmitter {
   peers = new Map()
   tips = new Map()
   merkleHeight = 0
+  rejectMessage = {}
 
   getNumPeers () {
     return this.peers.length
@@ -30,6 +31,12 @@ class Store extends EventEmitter {
     this.merkleHeight = data.merkleHeight
 
     this.emit('changed')
+  }
+  
+  setRejectMessage (rejectMessage) {
+    this.rejectMessage = rejectMessage
+    
+    this.emit('rejected')
   }
 
 }

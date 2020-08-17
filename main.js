@@ -56,7 +56,7 @@ async function main () {
   const sendTransaction = (amount, address) => {
     wallet.send(amount, address)
       .then(function (rawTransaction) {
-        debug(rawTransaction)
+        debug(rawTransaction.toString('hex'))
 
         spvnode.sendRawTransaction(rawTransaction)
         debug('SENT !')
@@ -109,6 +109,8 @@ async function main () {
     // TODO: remove change addresses. This is not needed in the filter ?
     pubkeyHashes.push(key.toString('hex'))
   })
+  
+  debug(pubkeyHashes.length)
 
   //////////////////////////////////
   //
@@ -136,6 +138,11 @@ async function main () {
 
   spvnode.on('newState', function (newData) {
     store.setSPVState(newData)
+  })
+
+  spvnode.on('reject', function (rejectMessage) {
+    debug(rejectMessage)
+    store.setRejectMessage(rejectMessage)
   })
 
   //////////////////////////////////

@@ -41,7 +41,6 @@ class Peer extends EventEmitter {
     this.count = 0
 
     this.socket.on('data', (data) => {
-      debug("DATA")
       this._onData(data).catch((err) => debug(err))
     })
     this.socket.on('close', this._onClose)
@@ -144,6 +143,7 @@ class Peer extends EventEmitter {
         case 'reject':
           const rejectMessage = reject.decodeRejectMessage(msg.payload)
           debug(rejectMessage)
+          this.node.emitReject(rejectMessage)
           break
         case 'block':
           const blockMessage = block.decodeBlockMessage(msg.payload)

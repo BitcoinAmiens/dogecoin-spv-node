@@ -55,7 +55,7 @@ class Wallet extends EventEmitter {
     // We need so the pubkey hashes are updated
     for (let i = 0; i < 20; i++) {
       // We need 20 addresses for bloom filter to protect privacy and it is a standard
-      console.log(this.generateChangeAddress())
+      this.generateChangeAddress()
     }
   }
 
@@ -95,7 +95,6 @@ class Wallet extends EventEmitter {
   _pubkeyToPubkeyHash (pubkey) {
     let pubKeyHash = crypto.createHash('sha256').update(pubkey).digest()
     pubKeyHash = new RIPEMD160().update(pubKeyHash).digest()
-
     return pubKeyHash
   }
 
@@ -154,7 +153,7 @@ class Wallet extends EventEmitter {
     this.txs.put(tx.id, tx, (err) => {
       if (err) { throw err }
     })
-
+        
     // Look for input which use our unspent output
     tx.txIns.forEach((txIn) => {
       let previousOutput = txIn.previousOutput.hash + txIn.previousOutput.index
@@ -167,6 +166,9 @@ class Wallet extends EventEmitter {
       this.unspentOutputs.get(previousOutput, (err, value) => {
         if (err && err.type !== 'NotFoundError') throw err
         if (err && err.type === 'NotFoundError') return
+
+        debug("We have spent this")
+        debug(tx.txOuts)
 
         if (value) {
           // remove the transaction from unspent transaction list
@@ -211,6 +213,9 @@ class Wallet extends EventEmitter {
         debug('unknown script')
     }
 
+    debug(this.pubkeyHashes.has(address))
+    debug(address)
+
     if (!this.pubkeyHashes.has(address)) {
       // Not in our wallet (false positive)
       return
@@ -221,7 +226,7 @@ class Wallet extends EventEmitter {
 
     let output = tx.id + indexBuffer.toString('hex')
 
-    debug(`New tx : ${tx}`)
+    debug(`New tx : ${output}`)
 
     // Save full tx in 'txs'
     this.txs.put(output, tx, (err) => {
@@ -230,8 +235,6 @@ class Wallet extends EventEmitter {
       // save only the unspent output in 'unspent'
       this.unspentOutputs.put(output, {txid: tx.id, vout: tx.txOuts.indexOf(txOut), value: txOut.value}, (err) => {
         if (err) throw err
-
-        debug('Register unspent tx')
 
         this.emit('balance')
       })
@@ -258,15 +261,25 @@ class Wallet extends EventEmitter {
     return this.generateNewAddress(true)
   }
 
-  getPrivateKey (index) {
-    const path = constants.PATH + '0' + '/' + index
+  getPrivateKey (index, change) {
+    const path = constants.PATH + change + '/' + index
     const root = bip32.fromSeed(this._seed, constants.WALLET)
     const child = root.derivePath(path)
     return child
   }
 
   async send (amount, to) {
-    let changeAddress = this.generateChangeAddress()
+    let changeAddress
+    for (let [key, value] of this.pubkeys.entries()) {
+      if (value.changeAddress && !value.used) {
+        changeAddress = pubkeyToAddress(Buffer.from(key, 'hex'))
+        break
+      }
+    }
+    if (!changeAddress) {
+      changeAddress = generateChangeAddress()
+    }
+    
     let transaction = {
       version: 1,
       txInCount: 0,
@@ -305,9 +318,6 @@ class Wallet extends EventEmitter {
 
           this.txs.get(value.txid)
             .then((data) => {
-              console.log(value)
-              console.log(data)
-
               transaction.txIns.push({
                 previousOutput: { hash: value.txid, index: value.vout},
                 // Temporary just so we can sign it (https://bitcoin.stackexchange.com/questions/32628/redeeming-a-raw-transaction-step-by-step-example-required/32695#32695)
@@ -335,8 +345,6 @@ class Wallet extends EventEmitter {
       })
     })
 
-    debug(transaction)
-
     // This need to be improved !
     let test = bs58check.decode(to).slice(1)
     let pkScript = Buffer.from('76a914'+ test.toString('hex') + '88ac', 'hex')
@@ -349,11 +357,14 @@ class Wallet extends EventEmitter {
 
     // TODO: Changed address should be pick from database.... and not hardcoded
     test = bs58check.decode(changeAddress).slice(1)
+    debug(test.toString('hex'))
     pkScript = Buffer.from('76a914'+ test.toString('hex') + '88ac', 'hex')
 
+    // TODO: fees for now make it 1 DOGE
+    let fee = 1*constants.SATOSHIS
     if (total > amount) {
       transaction.txOuts[1] = {
-        value: total - amount,
+        value: total - amount - fee,
         pkScriptSize: pkScript.length,
         pkScript
       }
@@ -363,28 +374,25 @@ class Wallet extends EventEmitter {
 
     ////////////////////////////////////////////////////////////////
 
-    console.log("Tx in counts : ",transaction.txInCount)
+    debug("Tx in counts : ",transaction.txInCount)
 
     for (let txInIndex = 0; txInIndex < transaction.txInCount; txInIndex++) {
       const rawUnsignedTransaction =  prepareTransactionToSign(transaction, txInIndex)
       const rawTransactionHash = doubleHash(rawUnsignedTransaction)
-
-      console.log(txInIndex)
-
+      
       // Which key ? Fuck
       const address = getAddressFromScript(transaction.txIns[txInIndex].signature)
-      let index
+      let value
 
       // We have pubkey hash
       // If public key compressed it should be 33 bytes (https://bitcoin.stackexchange.com/questions/2013/why-does-the-length-of-a-bitcoin-key-vary#2014)
       // TODO
       if (address.length === 20) {
         debug('PubKey Hash! Looking for index...')
-        let value = this.pubkeyHashes.get(address.toString('hex'))
-        index = value.index
+        value = this.pubkeyHashes.get(address.toString('hex'))
       }
 
-      const key = this.getPrivateKey(index)
+      const key = this.getPrivateKey(value.index, value.changeAddress )
 
       let pubKeyHash = crypto.createHash('sha256').update(key.publicKey).digest()
       pubKeyHash = new RIPEMD160().update(pubKeyHash).digest()

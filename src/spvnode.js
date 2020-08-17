@@ -14,7 +14,7 @@ const fs = require('fs')
 const path = require('path')
 
 // slow nodes
-const BAN_LIST = ['198.58.102.18']
+const BAN_LIST = []
 
 
 class SPVNode extends EventEmitter {
@@ -67,6 +67,10 @@ class SPVNode extends EventEmitter {
     if (process.env.NETWORK === 'testnet') {
       debug('We are on TESTNET !')
     }
+  }
+  
+  emitReject (rejectMessage) {
+    this.emit('reject', rejectMessage)
   }
 
   isShuttingDown () {
@@ -169,9 +173,9 @@ class SPVNode extends EventEmitter {
                   debug(err)
 
                   // Dont reject anymore instead save as broken
-                  //reject(err)
+                  reject(err)
 
-                  resolve()
+                  //resolve()
                 })
             })
           })

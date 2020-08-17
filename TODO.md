@@ -19,3 +19,4 @@
 - [ ] Source structures seperate spvnode, wallet and interface.
 - [ ] Create a class for each "Screen" of the interface
 - [x] Keep counting merkle block for interface (or it looks like it is frozen)
+- [ ] Pick fees

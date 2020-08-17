@@ -2,6 +2,7 @@ const constants = require('../constants')
 const KEYS = require('./keys')
 const terminalStyle = require('./terminalStyle')
 const EventEmitter = require('events')
+const debug = require('debug')('interface')
 
 // TODO: rename to screen and instead of INDEX call it MAIN
 const WINDOWS = {
@@ -52,6 +53,15 @@ class Interface extends EventEmitter {
     this.store.on('changed', () => {
       this.update()
     })
+    
+    this.store.on('rejected', () => {
+      if (this.window === WINDOWS.SEND_DOGECOINS) {
+        if (this.store.rejectMessage.message === 'tx') {
+          let rejectMsg = `${this.store.rejectMessage.reason} (CODE ${this.store.rejectMessage.code})`
+          this._displaySendDogecoinsWindow(rejectMsg)
+        }
+      }
+    })
 
     // Catch keys pressed
     process.stdin.on('data', (key) => {
@@ -79,14 +89,28 @@ class Interface extends EventEmitter {
         case KEYS.NUM_KEY_3:
           this._stop()
           break
+        case KEYS.RETURN:
+          if (this.window == WINDOWS.INDEX) { break }
+          this.window = WINDOWS.INDEX
+          process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines-1), () => {
+            process.stdout.write(terminalStyle.CLEAR)
+            process.stdout.write(this.format(
+              this.store.height,
+              this.store.bestHeight,
+              this.store.hash,
+              this.store.getNumPeers(),
+              this.store.tips,
+              this.store.merkleHeight,
+              this.store.balance
+            ))
+          })
+          break
+          
+          
       }
 
       if (this.window === WINDOWS.SEND_DOGECOINS) {
         this._evaluateSendDogecoinWindowKeys(key)
-      }
-
-      if (this.window === WINDOWS.GENERATE_ADDRESS) {
-        this._evaluateGenerateAddressWindowKeys(key)
       }
 
     })
@@ -139,29 +163,19 @@ class Interface extends EventEmitter {
     switch (key) {
       case KEYS.ENTER:
         this.sendTransaction(AMOUNT, TO_ADDRESS)
-        // TODO: wait for feedback of the transaction
-        this.window = WINDOWS.INDEX
-        process.stdout.write(this.format(
-          this.store.height,
-          this.store.bestHeight,
-          this.store.hash,
-          this.store.getNumPeers(),
-          this.store.tips,
-          this.store.merkleHeight,
-          this.store.balance
-        ))
         break
       default:
         return
     }
   }
 
-  _displaySendDogecoinsWindow () {
+  _displaySendDogecoinsWindow (rejectMessage = '') {
     process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines-1), () => {
       process.stdout.write(terminalStyle.CLEAR)
 
       const layout = `
 ================ SEND DOGECOINS ================
+    ${rejectMessage}
 
     Current balance: ${this.store.balance/constants.SATOSHIS} Ð
 
@@ -170,30 +184,12 @@ class Interface extends EventEmitter {
 
 
     Press "Enter" to send
+    Press "Return" to return to main screen
 `
       this.numberOfLines = layout.split('\n').length
 
       process.stdout.write(layout)
     })
-  }
-
-  _evaluateGenerateAddressWindowKeys (key) {
-    switch (key) {
-      case KEYS.ENTER:
-        this.window = WINDOWS.INDEX
-        process.stdout.write(this.format(
-          this.store.height,
-          this.store.bestHeight,
-          this.store.hash,
-          this.store.getNumPeers(),
-          this.store.tips,
-          this.store.merkleHeight,
-          this.store.balance
-        ))
-        break
-      default:
-        return
-    }
   }
 
   _displayGenerateAddressWindow () {

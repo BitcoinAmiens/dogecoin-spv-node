@@ -4,7 +4,7 @@
   "description": "dogecoin",
   "main": "./bin/main.js",
   "scripts": {
-    "start": "DEBUG=*,-nodemon:*,-nodemon node main.js",
+    "start": "DEBUG=*,-spvnode,-nodemon:*,-nodemon node main.js",
     "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon main.js",
     "clean": "rm -rf data",
     "test": "echo \"Error: no test specified\" && exit 1"
