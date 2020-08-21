@@ -173,7 +173,8 @@ class SPVNode extends EventEmitter {
                   debug(err)
 
                   // Dont reject anymore instead save as broken
-                  reject(err)
+                  // TODO: Wait for `any` to be supported and replace
+                  //reject(err)
 
                   //resolve()
                 })
@@ -258,9 +259,9 @@ class SPVNode extends EventEmitter {
         if (err && err.type !== 'NotFoundError') { reject(err) }
 
         if (err && err.type === 'NotFoundError') {
-          resolve(false)
+          resolve()
         } else {
-          resolve(true)
+          resolve(value)
         }
       })
     })

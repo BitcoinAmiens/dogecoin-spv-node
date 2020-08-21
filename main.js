@@ -197,3 +197,6 @@ async function main () {
 }
 
 main()
+  .catch(function (err) {
+    debug(err)
+  })

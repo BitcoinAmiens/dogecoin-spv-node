@@ -123,10 +123,12 @@ class Peer extends EventEmitter {
     for (const msg of decodedResponses) {
       switch (msg.cmd) {
         case 'version':
+        debug('Version message')
           const versionMessage = version.decodeVersionMessage(msg.payload)
           this._handleVersionMessage(versionMessage)
           break
         case 'verack':
+          debug('Verack message')
           this._handleVerackMessage()
           break
         case 'ping':
@@ -303,13 +305,13 @@ class Peer extends EventEmitter {
   }
 
   _handleVersionMessage (versionMessage) {
-    this.bestHeight = versionMessage.height
     debug(versionMessage)
     // Don't allow node version lower than 1.14
     if (versionMessage.version < 70015) {
-      this.socket.end()
+      this.socket.destroy()
       return
     }
+    this.bestHeight = versionMessage.height
     this._sendVerackMessage()
   }
 
@@ -356,10 +358,12 @@ class Peer extends EventEmitter {
       }
       
       debug("We have it in db")
+      debug(result)
+      debug("Merkle Height :", this.node.merkleHeight)
       // Edge case where we are missing only one merkle block otherwise we wait for 
       // other merkleBlock to be verified
       // REVIEW : This would be easier if we saved merkleBlock in db maybe
-      if (result.height > this.merkleHeight + 1) { return }
+      if (result.height > this.node.merkleHeight + 1) { return }
       debug("Process ")
         
     }
