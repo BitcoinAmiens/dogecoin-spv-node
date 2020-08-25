@@ -123,12 +123,10 @@ class Peer extends EventEmitter {
     for (const msg of decodedResponses) {
       switch (msg.cmd) {
         case 'version':
-        debug('Version message')
           const versionMessage = version.decodeVersionMessage(msg.payload)
           this._handleVersionMessage(versionMessage)
           break
         case 'verack':
-          debug('Verack message')
           this._handleVerackMessage()
           break
         case 'ping':
@@ -163,7 +161,7 @@ class Peer extends EventEmitter {
           debug('What you doing ????')
           break
         default:
-          debug("Unknown command :",msg.cmd)
+          debug(`Unknown command : ${msg.cmd}`)
       }
     }
   }
@@ -193,9 +191,8 @@ class Peer extends EventEmitter {
   }
 
   sendGetHeader (blockHash = [GENESIS_BLOCK_HASH]) {
-    debug('peer n° %i getheaders', this.id)
-    debug('Asked for :', blockHash)
-    var payload = getheaders.encodeGetheadersMessage(blockHash)
+    debug(`peer n° ${this.id} getheaders\nAsked for : ${blockHash}`)
+    let payload = getheaders.encodeGetheadersMessage(blockHash)
     const getHeadersMessage = packet.preparePacket('getheaders', payload)
     this.socket.write(getHeadersMessage, function (err) {
       if (err) {
@@ -206,9 +203,8 @@ class Peer extends EventEmitter {
   }
 
   sendGetBlocks (blockHash = [GENESIS_BLOCK_HASH], lastHash = "0000000000000000000000000000000000000000000000000000000000000000") {
-    debug('peer n° %i getblocks', this.id)
-    debug('Asked for :', blockHash)
-    var payload = getblocks.encodeGetblocksMessage(blockHash, lastHash)
+    debug(`peer n° ${this.id} getblocks\nAsked for : ${blockHash}`)
+    let payload = getblocks.encodeGetblocksMessage(blockHash, lastHash)
     const getBlocksMessage = packet.preparePacket('getblocks', payload)
     this.socket.write(getBlocksMessage, function (err) {
       if (err) {
@@ -219,8 +215,8 @@ class Peer extends EventEmitter {
   }
 
   sendGetData (inv) {
-    debug('peer n° %i getdata', this.id)
-    var getDataMessage = packet.preparePacket('getdata', inv)
+    debug(`peer n° ${this.id} getdata`)
+    let getDataMessage = packet.preparePacket('getdata', inv)
     this.socket.write(getDataMessage, function (err) {
       if (err) {
         console.error(err)
@@ -231,7 +227,7 @@ class Peer extends EventEmitter {
 
   sendFilterAdd (element) {
     // TODO: using 'filteradd' has big privacy issues !
-    var payload = filteradd.encodeFilterAdd(Buffer.from(element, 'hex'))
+    let payload = filteradd.encodeFilterAdd(Buffer.from(element, 'hex'))
     const filteraddMessage = packet.preparePacket('filteradd', payload)
     return new Promise((resolve, reject) => {
       this.socket.write(filteraddMessage, function (err) {
@@ -256,12 +252,12 @@ class Peer extends EventEmitter {
   }
 
   _sendVerackMessage () {
-    var verackMessage = packet.preparePacket('verack', Buffer.alloc(0))
+    let verackMessage = packet.preparePacket('verack', Buffer.alloc(0))
     this.socket.write(verackMessage)
   }
 
   _sendPongMessage (nonce) {
-    const pongMessage = packet.preparePacket('pong', nonce)
+    let pongMessage = packet.preparePacket('pong', nonce)
     this.socket.write(pongMessage)
   }
 
@@ -273,13 +269,11 @@ class Peer extends EventEmitter {
   }
 
   _updateTxs (txMessage) {
-    //debug('Handle Tx message')
     this.node.updateTxs(txMessage)
   }
 
   async _updateHeaders (headersMessage) {
-    debug('peer n° %i received headers message', this.id)
-    debug('Ip : ', this.ip)
+    debug(`peer n° ${this.id} received headers message\nIp : ${this.ip}`)
     /* Verify difficulty */
     headersMessage.headers.map((header) => {
       let buf = Buffer.from(header.nBits, 'hex')
@@ -295,7 +289,7 @@ class Peer extends EventEmitter {
       let proof = readU64(Buffer.from(header.hash, 'hex'),0)
 
       if (proof > target) {
-        console.log('NOOOOOOO')
+        debug('NOOOOOOO')
         process.exit()
       }
 
@@ -323,9 +317,7 @@ class Peer extends EventEmitter {
   // Need to be sync
   async _handleInvMessage (invMessage) {
 
-    debug('peer n° %i received inv message', this.id)
-    debug('Ip : ', this.ip)
-    debug('Inv Count : ', invMessage.count)
+    debug(`peer n° ${this.id} received inv message\nIp : ${this.ip}\nInv Count : ${invMessage.count}`)
 
     // It just notified us of a new bock.
     // TODO: We don't need this anymore
@@ -345,8 +337,6 @@ class Peer extends EventEmitter {
         
         // If merkle not synchronize, we don't process yet
         if (this.node.isMerkleSynchronizing() || !this.node.isSynchronized()) {
-          debug(this.node.isMerkleSynchronizing())
-          debug(!this.node.isSynchronized())
           debug("Not time to accept this")
           return
         }
@@ -358,8 +348,6 @@ class Peer extends EventEmitter {
       }
       
       debug("We have it in db")
-      debug(result)
-      debug("Merkle Height :", this.node.merkleHeight)
       // Edge case where we are missing only one merkle block otherwise we wait for 
       // other merkleBlock to be verified
       // REVIEW : This would be easier if we saved merkleBlock in db maybe

@@ -543,8 +543,7 @@ class SPVNode extends EventEmitter {
     this.updateHeight(newBestHeight, value[0])
 
     // Show pourcentage
-    debug('Sync at ' + ((this.height/this.bestHeight)*100).toFixed(2)+ '%')
-    debug('Height :', this.height)
+    debug(`Sync at ${((this.height/this.bestHeight)*100).toFixed(2)}%\nHeight : ${this.height}`)
 
     var finishSyncHeader = true
 
@@ -625,7 +624,7 @@ class SPVNode extends EventEmitter {
       this.merkleBlockNextHash = invBlocks[invBlocks.length - 1].hash
     }
     
-    debug("Merkle Hash updated : " + this.merkleBlockNextHash )
+    debug(`Merkle Hash updated : ${this.merkleBlockNextHash}`)
 
     
     return invBlocks
@@ -686,10 +685,7 @@ class SPVNode extends EventEmitter {
         return
       }*/
       
-      if (err && err.type === 'NotFoundError') {
-        debug(hash.toString('hex'))
-        debug("Merkle Block sent but header not found")
-        
+      if (err && err.type === 'NotFoundError') {        
         return
       }
 
@@ -698,8 +694,7 @@ class SPVNode extends EventEmitter {
         throw err
       }
 
-      debug('Merkle Blocs synced at : ' + ((value.height/this.bestHeight)*100).toFixed(2)+ '%')
-      debug('Heigh : ', value.height)
+      debug(`Merkle Blocs synced at : ${((value.height/this.bestHeight)*100).toFixed(2)}%\nHeight : ${value.height}`)
 
       let flags = []
 
@@ -758,7 +753,7 @@ class SPVNode extends EventEmitter {
 
   removePeer (peer) {
     if (this.peers.indexOf(peer) >= 0) {
-      debug('Slice Peer :', this.peers.indexOf(peer))
+      debug(`Slice Peer : ${this.peers.indexOf(peer)}`)
       this.peers.slice(this.peers.indexOf(peer))
     }
   }

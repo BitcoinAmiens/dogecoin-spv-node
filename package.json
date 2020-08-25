@@ -4,10 +4,10 @@
   "description": "dogecoin",
   "main": "./bin/main.js",
   "scripts": {
-    "start": "DEBUG=*,-wallet,-nodemon:*,-nodemon node main.js",
+    "start": "DEBUG=* node main.js",
     "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon main.js",
     "clean": "rm -rf data",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "ava"
   },
   "nodemonConfig": {
     "ignore": [
@@ -17,6 +17,9 @@
   "bin": {
     "dogecoin-spv": "./bin/main.js"
   },
+  "ava": {
+    "verbose": true
+  },
   "keywords": [
     "dogecoin",
     "spv",
@@ -25,11 +28,10 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "ava": "^3.12.1",
     "nodemon": "^1.14.8"
   },
   "dependencies": {
-    "@ledgerhq/hw-app-btc": "^4.20.0",
-    "@ledgerhq/hw-transport-node-hid": "^4.19.1",
     "bip32": "^2.0.3",
     "bip39": "git+https://github.com/bitcoinjs/bip39.git",
     "bitcoin-merkle-proof": "^0.1.0",
@@ -39,11 +41,10 @@
     "debug": "^4.1.1",
     "ecdsa": "^0.7.0",
     "exp-net": "0.0.1",
-    "forever": "^2.0.0",
     "level": "^6.0.0",
     "meow": "^6.1.0",
     "multicast-dns": "^7.0.0",
     "ripemd160": "^2.0.1",
-    "secp256k1": "^3.7.1"
+    "secp256k1": "^4.0.2"
   }
 }

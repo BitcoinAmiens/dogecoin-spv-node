@@ -1,4 +1,4 @@
-- [ ] Get change address
+- [x] Get change address
 - ~~[ ] Add change address to filter~~
 - [x] Register seed
 - [ ] Encrypt passphrase
@@ -14,9 +14,12 @@
 - [ ] Adding `--no-interface` argument
 - [x] Clean cursor color (avoid glitching effect)
 - [x] When stopping the application properly clean interface
-- [ ] Use `net.createServer` to create a proper server and not having the app closing when no more peers ( pros can share addr and while server is listening app wont stop, cons we are not a full node and need to open port to accept connection)
+- ~~[ ] Use `net.createServer` to create a proper server and not having the app closing when no more peers ( pros can share addr and while server is listening app wont stop, cons we are not a full node and need to open port to accept connection)~~
 - [ ] Solve ressources problem (app crash need to slow down or use workers ?)
 - [ ] Source structures seperate spvnode, wallet and interface.
 - [ ] Create a class for each "Screen" of the interface
 - [x] Keep counting merkle block for interface (or it looks like it is frozen)
 - [ ] Pick fees
+- [ ] bip39 as npm package
+- [ ] Save keys from wallet in db
+- [ ] Store bloom filters and re-use them for better privacy
