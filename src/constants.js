@@ -1,7 +1,11 @@
+const network = require('./network')
+const path = require('path');
+
 var settings = {
   regtest: {
+    DATA_SUBFOLDER: 'regtest',
     PROTOCOL_VERSION: 70004,
-    MAGIC_BYTES: 0xdab5bffa, //  0xdcb7c1fc
+    MAGIC_BYTES: 0xdab5bffa,
     SATOSHIS: 100000000,
     GENESIS_BLOCK_HASH: '3d2160a3b5dc4a9d62e7e66a295f70313ac808440ef7400d6c0772171ce973a5',
     PREVIOUS_HEADER: 'a573e91c1772076c0d40f70e4408c83a31705f296ae6e7629d4adcb5a360213d',
@@ -9,7 +13,7 @@ var settings = {
     NETWORK_BYTE: '6f',
     PATH: '44\'/1\'/0\'/',
     WALLET: {
-      wif: 0xEF, // 0xEF
+      wif: 0xEF,
       bip32: {
           public: 0x043587CF,
           private: 0x04358394,
@@ -17,6 +21,7 @@ var settings = {
     }
   },
   testnet: {
+    DATA_SUBFOLDER: 'testnet',
     PROTOCOL_VERSION: 70004,
     MAGIC_BYTES: 0xdcb7c1fc,
     SATOSHIS: 100000000,
@@ -35,8 +40,9 @@ var settings = {
     }
   },
   mainnet: {
+    DATA_SUBFOLDER: '.',
     PROTOCOL_VERSION: 70004,
-    MAGIC_BYTES: 'NO',
+    MAGIC_BYTES: 0xc0c0c0c0,
     SATOSHIS: 100000000,
     GENESIS_BLOCK_HASH: 'NO',
     PREVIOUS_HEADER: 'NO',
@@ -56,14 +62,14 @@ var settings = {
 
 var constants = settings.mainnet
 
-if (process.env.NETWORK === 'testnet') {
+if (process.env.NETWORK === network.TESTNET) {
   constants = settings.testnet
 }
 
-if (process.env.NETWORK === 'regtest') {
+if (process.env.NETWORK === network.REGTEST) {
   constants = settings.regtest
 }
 
-constants.DATA_FOLDER = __dirname + '/../data'
+constants.DATA_FOLDER = path.join(__dirname, '..', 'data', constants.DATA_SUBFOLDER)
 
 module.exports = constants

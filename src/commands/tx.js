@@ -58,7 +58,6 @@ function decodeTxMessage (payload) {
 
   compactSize = CompactSize.fromBuffer(payload, offset)
   offset += compactSize.offset
-
   tx.txOutCount = compactSize.size
 
   tx.txOuts = []
@@ -81,6 +80,8 @@ function decodeTxMessage (payload) {
 
   tx.locktime = payload.readUInt32LE(offset)
   offset += 4
+
+  tx.size = offset
 
   return tx
 }

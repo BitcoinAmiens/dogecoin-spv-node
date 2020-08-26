@@ -53,7 +53,7 @@ function decodeInvMessage (data) {
   return invMessage
 }
 
-function encodeInvMessage (data) {
+function encodeInvMessage (data, msg_type) {
   var compactSizeBuffer = CompactSize.fromSize(data.count)
   const buffer = new Buffer.alloc(36 * data.count + compactSizeBuffer.length)
   let offset = 0
@@ -61,9 +61,11 @@ function encodeInvMessage (data) {
   compactSizeBuffer.copy(buffer, offset)
   offset += compactSizeBuffer.length
 
+  // Now we want block
   for (var i = 0; i < data.count; i++) {
     // We want MSG_FILTERED_BLOCK so the code is 3
-    buffer.writeUInt32LE(3, offset)
+    // If it is 2 we want MSG_BLOCK because we had a new block
+    buffer.writeUInt32LE(msg_type, offset)
     offset += 4
 
     const blockHashBuffer = Buffer.from(data.inventory[i].hash, 'hex')
