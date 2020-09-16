@@ -120,10 +120,13 @@ class Peer extends EventEmitter {
       decodedResponses.push(decodedResponse)
     }
     
+    var kek
+    
     for (const msg of decodedResponses) {
       switch (msg.cmd) {
         case 'version':
           const versionMessage = version.decodeVersionMessage(msg.payload)
+          debug(versionMessage)
           this._handleVersionMessage(versionMessage)
           break
         case 'verack':

@@ -18,7 +18,8 @@
     "dogecoin-spv": "./bin/main.js"
   },
   "ava": {
-    "verbose": true
+    "verbose": true,
+    "files": ["test/*.test.js"]
   },
   "keywords": [
     "dogecoin",
