@@ -120,8 +120,6 @@ class Peer extends EventEmitter {
       decodedResponses.push(decodedResponse)
     }
     
-    var kek
-    
     for (const msg of decodedResponses) {
       switch (msg.cmd) {
         case 'version':
