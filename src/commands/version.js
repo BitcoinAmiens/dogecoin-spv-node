@@ -6,11 +6,8 @@ const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
 const NODE_IP = '163.172.182.246'
 const NODE_PORT = 44556
 
-function versionMessage () {
-  const buffer = new Buffer.alloc(86)
-  let offset = 0
-
-  var payload = {
+function getVersion () {
+  let version = {
     version: PROTOCOL_VERSION,
     services: 4,
     time: Date.now(),
@@ -29,6 +26,13 @@ function versionMessage () {
     height: 0,
     relay: false
   }
+  
+  return version
+}
+
+function encodeVersionMessage (payload) {
+  const buffer = new Buffer.alloc(86)
+  let offset = 0
 
   offset = buffer.writeInt32LE(payload.version, offset, true)
   offset = write64(buffer, payload.services, offset, false)
@@ -127,4 +131,4 @@ function decodeVersionMessage (data) {
   return version
 }
 
-module.exports = { versionMessage, decodeVersionMessage }
+module.exports = { encodeVersionMessage, decodeVersionMessage, getVersion }

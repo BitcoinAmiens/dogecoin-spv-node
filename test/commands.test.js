@@ -10,6 +10,8 @@ const { decodeHeadersMessage } = require('../src/commands/headers')
 const { decodeInvMessage } = require('../src/commands/inv')
 const { decodeMerkleblockMessage } = require('../src/commands/merkleblock')
 const { decodeTxMessage } = require('../src/commands/tx')
+const { encodeVersionMessage, decodeVersionMessage } = require('../src/commands/version')
+
 
 const TEST_VECTORS_DIR = path.join('.', 'test', 'test_vectors')
 
@@ -93,8 +95,32 @@ test('successfully decode `tx` payload', t => {
 
   t.is(JSON.stringify(data.value), JSON.stringify(result))
 })
-test.todo('successfully encode `version` payload')
-test.todo('successfully decode `version` payload')
+
+test('successfully encode `version` payload', t => {
+  let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'version.json'), { encoding: 'utf-8' })
+  data =  JSON.parse(data)
+  
+  let result = encodeVersionMessage(data.value)
+
+  t.is(data.hex, result.toString('hex'))
+})
+
+test('successfully decode `version` payload', t => {
+  let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'version.json'), { encoding: 'utf-8' })
+  data =  JSON.parse(data)
+  
+  let result = decodeVersionMessage(Buffer.from(data.hex, 'hex'))
+
+  t.true('agent' in result)
+  t.true('height' in result)
+  t.true('local' in result)
+  t.true('nonce' in result)
+  t.true('relay' in result)
+  t.true('remote' in result)
+  t.true('services' in result)
+  t.true('version' in result)
+
+})
 
 /*
   Packets encoding and decoding !
