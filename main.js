@@ -110,6 +110,7 @@ async function main () {
     pubkeyHashes.push(key.toString('hex'))
   })
   
+  debug(pubkeyHashes)
   debug(pubkeyHashes.length)
 
   //////////////////////////////////

@@ -9,3 +9,6 @@ restart:
 	
 generate:
 	docker exec dogecoind_regtest dogecoin-cli generate 5
+	
+clean-regtest:
+	rm -rf data/regtest

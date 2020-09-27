@@ -53,7 +53,8 @@ class Peer extends EventEmitter {
     return new Promise ((resolve, reject) => {
       let something = this.socket.connect(this.port, this.ip, (res) => {
         debug('Connecting to', this.ip)
-        var message = version.versionMessage()
+        let version = version.getVersion()
+        let message = version.encodeVersionMessage(version)
         const versionPacket = packet.preparePacket('version', message)
 
         this.on('verack', function () {
@@ -124,6 +125,7 @@ class Peer extends EventEmitter {
       switch (msg.cmd) {
         case 'version':
           const versionMessage = version.decodeVersionMessage(msg.payload)
+          debug(versionMessage)
           this._handleVersionMessage(versionMessage)
           break
         case 'verack':
