@@ -11,6 +11,9 @@ const { decodeInvMessage } = require('../src/commands/inv')
 const { decodeMerkleblockMessage } = require('../src/commands/merkleblock')
 const { decodeTxMessage } = require('../src/commands/tx')
 const { encodeVersionMessage, decodeVersionMessage } = require('../src/commands/version')
+const { encodePingMessage } = require('../src/commands/ping')
+const { decodeRejectMessage } = require('../src/commands/reject')
+const { preparePacket, decodePacket } = require('../src/commands/packet')
 
 
 const TEST_VECTORS_DIR = path.join('.', 'test', 'test_vectors')
@@ -27,8 +30,6 @@ test('successfully decode `block` payload', t => {
   t.is(result.blockHeader, data.value.blockHeader)
   t.is(result.txnCount, data.value.txnCount)
 })
-
-test.todo('successfully encode `filteradd` payload')
 
 test('successfully encode `filterload` payload', t => {
   let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'filterload.json'), { encoding: 'utf-8' })
@@ -84,8 +85,23 @@ test('successfully decode `merkleblock` payload', t => {
   t.is(JSON.stringify(data.value), JSON.stringify(result))
 })
 
-test.todo('successfully encode `ping` payload')
-test.todo('successfully decode `reject` payload')
+test('successfully encode `ping` payload', t => {
+  let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'ping.json'), { encoding: 'utf-8' })
+  data =  JSON.parse(data)
+  
+  let result = encodePingMessage(data.value)
+
+  t.is(data.hex, result.toString('hex'))
+})
+
+test('successfully decode `reject` payload', t => {
+  let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'reject.json'), { encoding: 'utf-8' })
+  data =  JSON.parse(data)
+  
+  let result = decodeRejectMessage(Buffer.from(data.hex, 'hex'))
+
+  t.is(JSON.stringify(data.value), JSON.stringify(result))
+})
 
 test('successfully decode `tx` payload', t => {
   let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'tx.json'), { encoding: 'utf-8' })
@@ -125,5 +141,22 @@ test('successfully decode `version` payload', t => {
 /*
   Packets encoding and decoding !
 */
-test.todo('successfully encode packet')
-test.todo('successfully decode packet')
+test('successfully encode packet', t => {
+  let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'packet.json'), { encoding: 'utf-8' })
+  data =  JSON.parse(data)
+  
+  let result = preparePacket(data.value.cmd, Buffer.from(data.value.payload, 'hex'))
+
+  t.is(data.hex, result.toString('hex'))
+})
+
+test('successfully decode packet', t => {
+  let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'packet.json'), { encoding: 'utf-8' })
+  data =  JSON.parse(data)
+  
+  let result = decodePacket(Buffer.from(data.hex, 'hex'))
+
+  t.is(data.value.cmd, result.cmd)
+  t.is(data.value.lenght, result.lenght)
+  t.is(data.value.payload, result.payload.toString('hex'))
+})

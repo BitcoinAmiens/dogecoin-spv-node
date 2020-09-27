@@ -28,7 +28,7 @@ function decodeRejectMessage (payload) {
   offset += rejectMessage.reasonLength
 
   if (payload.length - offset > 0) {
-    rejectMessage.extraData = payload.slice(offset, payload.length).toString()
+    rejectMessage.extraData = payload.slice(offset, payload.length).toString('hex')
   }
 
   return rejectMessage
