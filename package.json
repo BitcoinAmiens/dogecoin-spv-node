@@ -7,7 +7,7 @@
     "start": "DEBUG=* node main.js",
     "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon main.js",
     "clean": "rm -rf data",
-    "test": "ava",
+    "test": "NETWORK=testnet ava",
     "generate": "node test/tools/generate.js"
   },
   "nodemonConfig": {
