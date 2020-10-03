@@ -1,23 +1,23 @@
-var net = require('net')
-var EventEmitter = require('events')
-var debug = require('debug')('peer')
+const net = require('net')
+const EventEmitter = require('events')
+const debug = require('debug')('peer')
 
 const doubleHash = require('./utils/doubleHash')
 
 const { readU64 } = require('./utils/write64')
 
-var packet = require('./commands/packet')
-var version = require('./commands/version')
-var inv = require('./commands/inv')
-var filterload = require('./commands/filterload')
-var filteradd = require('./commands/filteradd')
-var getheaders = require('./commands/getheaders')
-var headers = require('./commands/headers')
-var getblocks = require('./commands/getblocks')
-var reject = require('./commands/reject')
-var block = require('./commands/block')
-var merkleblock = require('./commands/merkleblock')
-var tx = require('./commands/tx')
+const packet = require('./commands/packet')
+const version = require('./commands/version')
+const inv = require('./commands/inv')
+const filterload = require('./commands/filterload')
+const filteradd = require('./commands/filteradd')
+const getheaders = require('./commands/getheaders')
+const headers = require('./commands/headers')
+const getblocks = require('./commands/getblocks')
+const reject = require('./commands/reject')
+const block = require('./commands/block')
+const merkleblock = require('./commands/merkleblock')
+const tx = require('./commands/tx')
 
 const { GENESIS_BLOCK_HASH } = require('./constants')
 
@@ -53,8 +53,8 @@ class Peer extends EventEmitter {
     return new Promise ((resolve, reject) => {
       let something = this.socket.connect(this.port, this.ip, (res) => {
         debug('Connecting to', this.ip)
-        let version = version.getVersion()
-        let message = version.encodeVersionMessage(version)
+        let versionObj = version.getVersion(this.ip, this.port)
+        let message = version.encodeVersionMessage(versionObj)
         const versionPacket = packet.preparePacket('version', message)
 
         this.on('verack', function () {

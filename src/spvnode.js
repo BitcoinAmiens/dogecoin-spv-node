@@ -299,7 +299,7 @@ class SPVNode extends EventEmitter {
             resolve()
           })
           .catch((err) => {
-            console.log(err)
+            debug(err)
             reject(err)
           })
         })

@@ -6,15 +6,15 @@ const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
 const NODE_IP = '163.172.182.246'
 const NODE_PORT = 44556
 
-function getVersion () {
+function getVersion (ip, port) {
   let version = {
     version: PROTOCOL_VERSION,
     services: 4,
     time: Date.now(),
     remote : {
       services: 1,
-      host: NODE_IP,
-      port: NODE_PORT
+      host: ip,
+      port: port
     },
     local: {
       services: 4,

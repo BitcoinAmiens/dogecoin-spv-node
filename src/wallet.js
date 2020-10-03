@@ -397,7 +397,7 @@ class Wallet extends EventEmitter {
       let pubKeyHash = crypto.createHash('sha256').update(key.publicKey).digest()
       pubKeyHash = new RIPEMD160().update(pubKeyHash).digest()
 
-      const signature = secp256k1.sign(Buffer.from(rawTransactionHash, 'hex'), key.privateKey)
+      const signature = secp256k1.ecdsaSign(Buffer.from(rawTransactionHash, 'hex'), key.privateKey)
 
       const signatureDer = secp256k1.signatureExport(signature.signature)
 
