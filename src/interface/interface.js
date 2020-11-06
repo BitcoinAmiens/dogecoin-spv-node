@@ -4,45 +4,22 @@ const terminalStyle = require('./terminalStyle')
 const EventEmitter = require('events')
 const debug = require('debug')('interface')
 const MainScreen = require('./screens/mainScreen')
+const NewAddressScreen = require('./screens/newAddressScreen')
+const SendDogeScreen = require('./screens/sendDogeScreen')
 
-
-// TODO: rename to screen and instead of INDEX call it MAIN
-const WINDOWS = {
-  INDEX: 0,
-  GENERATE_ADDRESS: 1,
-  SEND_DOGECOINS: 2
-}
-
-const TO_ADDRESS = 'n3p9T8GtBwC6DSK1neCuE1XPs7ftroRx63'
-// We send two dogecoins
-const AMOUNT = 2*constants.SATOSHIS
-
-const MENU_PREFIX = `${terminalStyle.WHITE_BACKGROUND}${terminalStyle.BLACK}${terminalStyle.BOLD}`
-const MENU_SUFFIX = terminalStyle.RESET
-
+/*const MENU_PREFIX = `${terminalStyle.WHITE_BACKGROUND}${terminalStyle.BLACK}${terminalStyle.BOLD}`
+const MENU_SUFFIX = terminalStyle.RESET*/
 
 // Interface
 class Interface extends EventEmitter {
 
-  numberOfLines = 0
-  cursorPosition = 0
-  lock = false
   screen = null
-  window = WINDOWS.INDEX
-
-  // FIXME
-  menuSelection = {
-    '0': '',
-    '1': '',
-    '2': '',
-    'currentPosition': 0
-  }
-
   isShuttingDown = false
 
   constructor (args) {
     super()
 
+    // Keep this and fail early
     if (typeof args.getAddress !== 'function' || typeof args.sendTransaction !== 'function' || typeof args.store !== 'object') {
       throw new Error("You need to define 'getAddress' function, 'sendTransaction' function and a 'store' object.")
     }
@@ -54,14 +31,6 @@ class Interface extends EventEmitter {
     this.screen = new MainScreen({store: args.store})
     this._init()
 
-    this.store.on('rejected', () => {
-      if (this.window === WINDOWS.SEND_DOGECOINS) {
-        if (this.store.rejectMessage.message === 'tx') {
-          let rejectMsg = `${this.store.rejectMessage.reason} (CODE ${this.store.rejectMessage.code})`
-          this._displaySendDogecoinsWindow(rejectMsg)
-        }
-      }
-    })
 
     // Catch keys pressed
     process.stdin.on('data', (key) => {
@@ -71,40 +40,18 @@ class Interface extends EventEmitter {
           this._stop()
           break
         case KEYS.NUM_KEY_1:
-          this.window = WINDOWS.GENERATE_ADDRESS
-          this._displayGenerateAddressWindow()
+          this._displayNewAddressScreen()
           break
         case KEYS.NUM_KEY_2:
-          this.window = WINDOWS.SEND_DOGECOINS
-          this._displaySendDogecoinsWindow()
+          this._displaySendDogeScreen()
           break
         case KEYS.NUM_KEY_3:
           this._stop()
           break
         case KEYS.RETURN:
-          if (this.window == WINDOWS.INDEX) { break }
-          this.window = WINDOWS.INDEX
-          process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines-1), () => {
-            process.stdout.write(terminalStyle.CLEAR)
-            process.stdout.write(this.screen.format(
-              this.store.height,
-              this.store.bestHeight,
-              this.store.hash,
-              this.store.getNumPeers(),
-              this.store.tips,
-              this.store.merkleHeight,
-              this.store.balance
-            ))
-          })
+          this._displayMainScreen()
           break
-          
-          
       }
-
-      if (this.window === WINDOWS.SEND_DOGECOINS) {
-        this._evaluateSendDogecoinWindowKeys(key)
-      }
-
     })
   }
 
@@ -146,56 +93,37 @@ class Interface extends EventEmitter {
     })
   }
 
-  _evaluateSendDogecoinWindowKeys (key) {
-    switch (key) {
-      case KEYS.ENTER:
-        this.sendTransaction(AMOUNT, TO_ADDRESS)
-        break
-      default:
-        return
-    }
-  }
-
-  _displaySendDogecoinsWindow (rejectMessage = '') {
-    process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines-1), () => {
+  _displaySendDogeScreen () {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
       process.stdout.write(terminalStyle.CLEAR)
 
-      const layout = `
-================ SEND DOGECOINS ================
-    ${rejectMessage}
-
-    Current balance: ${this.store.balance/constants.SATOSHIS} Ð
-
-    Amount: ${AMOUNT/constants.SATOSHIS} Ð
-    To: ${TO_ADDRESS}
-
-
-    Press "Enter" to send
-    Press "Return" to return to main screen
-`
-      this.numberOfLines = layout.split('\n').length
-
-      process.stdout.write(layout)
+      // Update screen
+      this.screen = new SendDogeScreen({sendTransaction: this.sendTransaction, store: this.store})
     })
   }
 
-  _displayGenerateAddressWindow () {
-    let address = this.getAddress()
-
-    process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines-1), () => {
+  _displayNewAddressScreen () {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
       process.stdout.write(terminalStyle.CLEAR)
+      // Update screen
+      this.screen = new NewAddressScreen({getAddress: this.getAddress})
+    })
+  }
 
-      const layout = `
-================ NEW ADDRESS DOGECOIN ================
-
-    Your address :
-    ${address}
-
-    Press "Return" to return to main screen
-`
-      this.numberOfLines = layout.split('\n').length
-
-      process.stdout.write(layout)
+  _displayMainScreen () {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
+      process.stdout.write(terminalStyle.CLEAR)
+      this.screen = new MainScreen({store: this.store})
+      // TODO: This ugly
+      process.stdout.write(this.screen.format(
+        this.store.height,
+        this.store.bestHeight,
+        this.store.hash,
+        this.store.getNumPeers(),
+        this.store.tips,
+        this.store.merkleHeight,
+        this.store.balance
+      ))
     })
   }
 
