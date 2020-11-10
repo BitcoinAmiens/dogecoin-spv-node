@@ -28,29 +28,27 @@ class Interface extends EventEmitter {
     this.sendTransaction = args.sendTransaction
     this.store = args.store
 
-    this.screen = new MainScreen({store: args.store})
+    this.screen = new MainScreen({
+      store: this.store,
+      displayNewAddressScreen: this.displayNewAddressScreen,
+      displaySendDogeScreen: this.displaySendDogeScreen,
+      stop: this.stop
+    })
+    
     this._init()
-
 
     // Catch keys pressed
     process.stdin.on('data', (key) => {
-
-      switch (key) {
-        case KEYS.CTRL_C:
-          this._stop()
-          break
-        case KEYS.NUM_KEY_1:
-          this._displayNewAddressScreen()
-          break
-        case KEYS.NUM_KEY_2:
-          this._displaySendDogeScreen()
-          break
-        case KEYS.NUM_KEY_3:
-          this._stop()
-          break
-        case KEYS.RETURN:
-          this._displayMainScreen()
-          break
+      
+      if (this.screen.keyPressed(key)) {
+        switch (key) {
+          case KEYS.CTRL_C:
+            this.stop()
+            break
+          case KEYS.RETURN:
+            this.displayMainScreen()
+            break
+        }        
       }
     })
   }
@@ -73,7 +71,7 @@ class Interface extends EventEmitter {
     process.stdin.setEncoding('utf-8')
   }
 
-  _stop () {
+  stop = () => {
     // Need to have screen unlock (so no update)
     this.isShuttingDown = true
 
@@ -93,7 +91,7 @@ class Interface extends EventEmitter {
     })
   }
 
-  _displaySendDogeScreen () {
+  displaySendDogeScreen = () => {
     process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
       process.stdout.write(terminalStyle.CLEAR)
 
@@ -102,7 +100,7 @@ class Interface extends EventEmitter {
     })
   }
 
-  _displayNewAddressScreen () {
+  displayNewAddressScreen = () => {
     process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
       process.stdout.write(terminalStyle.CLEAR)
       // Update screen
@@ -110,10 +108,15 @@ class Interface extends EventEmitter {
     })
   }
 
-  _displayMainScreen () {
+  displayMainScreen = () => {
     process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
       process.stdout.write(terminalStyle.CLEAR)
-      this.screen = new MainScreen({store: this.store})
+      this.screen = new MainScreen({
+        store: this.store,
+        displayNewAddressScreen: this.displayNewAddressScreen,
+        displaySendDogeScreen: this.displaySendDogeScreen,
+        stop: this.stop
+      })
       // TODO: This ugly
       process.stdout.write(this.screen.format(
         this.store.height,

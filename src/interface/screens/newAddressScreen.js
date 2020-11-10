@@ -1,10 +1,7 @@
-const EventEmitter = require('events')
+const Screen = require('./screen')
+const debug = require('debug')('newAddressScreen')
 
-class NewAddressScreen extends EventEmitter {
-  numberOfLines = 0
-  cursorPosition = 0
-  lock = false
-  
+class NewAddressScreen extends Screen {
   constructor (args) {
     super()
     
@@ -15,6 +12,11 @@ class NewAddressScreen extends EventEmitter {
     this.address = args.getAddress()
 
     this.update()
+  }
+  
+  keyPressed (key) {
+    debug(key)
+    return
   }
   
   update () {
@@ -30,8 +32,7 @@ class NewAddressScreen extends EventEmitter {
 
     process.stdout.write(layout)
   }
-  
-  
+    
 }
 
 module.exports = NewAddressScreen
