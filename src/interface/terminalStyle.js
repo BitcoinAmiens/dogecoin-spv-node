@@ -8,7 +8,8 @@ const terminalStyle = {
   NO_CURSOR: '\x1B[?25l',
   SHOW_CURSOR: '\x1B[?25h',
   CLEAR: '\x1b[J',
-  SCROLL_UP: '\x1b[1J'
+  SCROLL_UP: '\x1b[1J',
+  SLOW_BLINKING: '\x1b[5m'
 }
 
 module.exports = terminalStyle

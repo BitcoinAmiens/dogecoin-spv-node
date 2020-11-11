@@ -1,10 +1,10 @@
 - [x] Get change address
 - ~~[ ] Add change address to filter~~
 - [x] Register seed
-- [ ] Encrypt passphrase
+- ~~[ ] Encrypt passphrase~~
 - ~~[ ] Electron app (maybe not...)~~
 - [ ] Create proper class for message
-- [ ] Test framework (Avajs minimalist test framework https://github.com/avajs/ava)
+- [x] Test framework (Avajs minimalist test framework https://github.com/avajs/ava)
 - [ ] Tor mode (but then filter need to be randomize)
 - [x] We should calculate balance from unspent tx in wallet
 - ~~[ ] Daemonize~~ (not here directly)

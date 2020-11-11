@@ -109,9 +109,6 @@ async function main () {
     // TODO: remove change addresses. This is not needed in the filter ?
     pubkeyHashes.push(key.toString('hex'))
   })
-  
-  debug(pubkeyHashes)
-  debug(pubkeyHashes.length)
 
   //////////////////////////////////
   //
