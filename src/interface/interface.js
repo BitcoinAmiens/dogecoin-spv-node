@@ -3,12 +3,14 @@ const KEYS = require('./keys')
 const terminalStyle = require('./terminalStyle')
 const EventEmitter = require('events')
 const debug = require('debug')('interface')
-const MainScreen = require('./screens/mainScreen')
-const NewAddressScreen = require('./screens/newAddressScreen')
-const SendDogeScreen = require('./screens/sendDogeScreen')
 
-/*const MENU_PREFIX = `${terminalStyle.WHITE_BACKGROUND}${terminalStyle.BLACK}${terminalStyle.BOLD}`
-const MENU_SUFFIX = terminalStyle.RESET*/
+const {
+  MainScreen,
+  NewAddressScreen,
+  SendDogeScreen,
+  MnemonicScreen,
+  DummyScreen
+} = require('./screens/')
 
 // Interface
 class Interface extends EventEmitter {
@@ -20,20 +22,20 @@ class Interface extends EventEmitter {
     super()
 
     // Keep this and fail early
-    if (typeof args.getAddress !== 'function' || typeof args.sendTransaction !== 'function' || typeof args.store !== 'object') {
+    if (
+      typeof args.getAddress !== 'function' ||
+      typeof args.sendTransaction !== 'function' ||
+      typeof args.store !== 'object'
+    ) {
       throw new Error("You need to define 'getAddress' function, 'sendTransaction' function and a 'store' object.")
     }
 
     this.getAddress = args.getAddress
     this.sendTransaction = args.sendTransaction
     this.store = args.store
-
-    this.screen = new MainScreen({
-      store: this.store,
-      displayNewAddressScreen: this.displayNewAddressScreen,
-      displaySendDogeScreen: this.displaySendDogeScreen,
-      stop: this.stop
-    })
+    
+    // dummy screen to avoid trouble
+    this.screen = new DummyScreen()
     
     this._init()
 
@@ -57,8 +59,6 @@ class Interface extends EventEmitter {
     // Remove cursor
     process.stdout.write(terminalStyle.NO_CURSOR)
     process.stdout.write('\x1b]0;Dogecoin SPV node wallet\x07')
-
-    process.stdout.write(this.screen.format())
 
     // without this, we would only get streams once enter is pressed
     process.stdin.setRawMode(true)
@@ -90,6 +90,23 @@ class Interface extends EventEmitter {
       this.emit('quit')
     })
   }
+  
+  showMnemonicScreen (mnemonic) {
+    this.displayMnemonicScreen(mnemonic)
+  }
+  
+  showMainScreen () {
+    this.displayMainScreen()
+  }
+  
+  displayMnemonicScreen = (mnemonic) => {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
+      process.stdout.write(terminalStyle.CLEAR)
+
+      // Update screen
+      this.screen = new MnemonicScreen(mnemonic)
+    })
+  }
 
   displaySendDogeScreen = () => {
     process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
@@ -103,6 +120,7 @@ class Interface extends EventEmitter {
   displayNewAddressScreen = () => {
     process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
       process.stdout.write(terminalStyle.CLEAR)
+      
       // Update screen
       this.screen = new NewAddressScreen({getAddress: this.getAddress})
     })
@@ -132,4 +150,4 @@ class Interface extends EventEmitter {
 
 }
 
-module.exports = Interface;
+module.exports = Interface

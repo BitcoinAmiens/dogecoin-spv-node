@@ -4,8 +4,8 @@
   "description": "dogecoin",
   "main": "./bin/main.js",
   "scripts": {
-    "start": "DEBUG=* node main.js",
-    "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon main.js",
+    "start": "DEBUG=* node src/main.js",
+    "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon src/main.js",
     "clean": "rm -rf data",
     "test": "NETWORK=testnet ava",
     "generate": "node test/tools/generate.js"
