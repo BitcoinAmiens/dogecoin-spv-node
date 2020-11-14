@@ -3,12 +3,14 @@ const KEYS = require('./keys')
 const terminalStyle = require('./terminalStyle')
 const EventEmitter = require('events')
 const debug = require('debug')('interface')
-// TODO: create an index.js file for all the screens to be imported
-const MainScreen = require('./screens/mainScreen')
-const NewAddressScreen = require('./screens/newAddressScreen')
-const SendDogeScreen = require('./screens/sendDogeScreen')
-const MnemonicScreen = require('./screens/mnemonicScreen')
-const DummyScreen = require('./screens/dummyScreen')
+
+const {
+  MainScreen,
+  NewAddressScreen,
+  SendDogeScreen,
+  MnemonicScreen,
+  DummyScreen
+} = require('./screens/')
 
 // Interface
 class Interface extends EventEmitter {
@@ -57,8 +59,6 @@ class Interface extends EventEmitter {
     // Remove cursor
     process.stdout.write(terminalStyle.NO_CURSOR)
     process.stdout.write('\x1b]0;Dogecoin SPV node wallet\x07')
-
-    //process.stdout.write(this.screen.format())
 
     // without this, we would only get streams once enter is pressed
     process.stdin.setRawMode(true)
@@ -120,6 +120,7 @@ class Interface extends EventEmitter {
   displayNewAddressScreen = () => {
     process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
       process.stdout.write(terminalStyle.CLEAR)
+      
       // Update screen
       this.screen = new NewAddressScreen({getAddress: this.getAddress})
     })
@@ -149,4 +150,4 @@ class Interface extends EventEmitter {
 
 }
 
-module.exports = Interface;
+module.exports = Interface

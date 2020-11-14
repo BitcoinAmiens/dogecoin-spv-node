@@ -16,7 +16,7 @@ Start the docker container:
 $ make regtest
 ```
 
-Restart the container (in case you stopped the container and want to continue developpment):
+Restart the container (in case you stopped the container and want to continue development):
 ```
 $ make restart
 ```
@@ -44,6 +44,3 @@ NETWORK=testnet npm start
 tail -f stdout.log
 ```
 
-## NOTES
-
-THE MNEMONIC SHOULD ONLY BE USE IN REGTEST OR FOR TEST.

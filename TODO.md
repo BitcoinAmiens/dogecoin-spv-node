@@ -17,7 +17,7 @@
 - ~~[ ] Use `net.createServer` to create a proper server and not having the app closing when no more peers ( pros can share addr and while server is listening app wont stop, cons we are not a full node and need to open port to accept connection)~~
 - [ ] Solve resources problem (app crash need to slow down or use workers ?)
 - [ ] Source structures separate spvnode, wallet and interface.
-- [ ] Create a class for each "Screen" of the interface
+- [x] Create a class for each "Screen" of the interface
 - [x] Keep counting merkle block for interface (or it looks like it is frozen)
 - [ ] Pick fees
 - [ ] bip39 as npm package
@@ -25,3 +25,5 @@
 - [ ] Store bloom filters and re-use them for better privacy
 - [ ] Submit wallet directory files path as constructor argument
 - [ ] Submit spv node directory files path as constructor argument
+- [ ] Make it easier to add new screen in Interface
+- [ ] Writing on the terminal screen should only be happening in Interface.

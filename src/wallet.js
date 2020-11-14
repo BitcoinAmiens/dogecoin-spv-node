@@ -35,10 +35,6 @@ class Wallet extends EventEmitter {
     this.unspentOutputs = level(path.join(constants.DATA_FOLDER, 'wallet', 'unspent'), {valueEncoding: 'json'})
     this.txs = level(path.join(constants.DATA_FOLDER, 'wallet', 'tx'), {valueEncoding: 'json'})
 
-    // ONLY USE FOR REGTEST AND TESTNET !
-    //this._mnemonic = "neutral acoustic balance describe access pitch tourist skull recycle nation silent crawl"
-
-
     // Looking for seed file
     try {
       fs.accessSync(SEED_FILE)

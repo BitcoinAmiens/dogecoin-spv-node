@@ -20,9 +20,11 @@ class MainScreen extends Screen {
     this.displaySendDogeScreen = args.displaySendDogeScreen
     this.stop = args.stop
 
-    this.store.on('changed', () => {
-      this.update()
-    })  
+    this.store.on('changed', this._handleChangedEvent)  
+  }
+  
+  _handleChangedEvent = () => {
+    this.update()
   }
   
   _unlock () {
@@ -33,9 +35,11 @@ class MainScreen extends Screen {
   keyPressed (key) {
     switch(key) {
       case KEYS.NUM_KEY_1:
+        this.store.removeListener('changed',this._handleChangedEvent)
         this.displayNewAddressScreen()
         break
       case KEYS.NUM_KEY_2:
+      this.store.removeListener('changed',this._handleChangedEvent)
         this.displaySendDogeScreen()
         break
       case KEYS.NUM_KEY_3:
