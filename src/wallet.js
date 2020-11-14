@@ -19,10 +19,11 @@ var level = require('level')
 
 //const Transport = require('@ledgerhq/hw-transport-node-hid').default
 //const AppBtc = require('@ledgerhq/hw-app-btc').default
+// TODO: constants values should be constructor arguments
 const constants = require('./constants')
 const pubkeyToAddress = require('./utils/pubkeyToAddress')
 
-const SEED_FILE = path.join('data','seed.json')
+const SEED_FILE = path.join(constants.DATA_FOLDER, 'seed.json')
 
 // HD wallet for dogecoin
 class Wallet extends EventEmitter {
@@ -35,7 +36,7 @@ class Wallet extends EventEmitter {
     this.txs = level(path.join(constants.DATA_FOLDER, 'wallet', 'tx'), {valueEncoding: 'json'})
 
     // ONLY USE FOR REGTEST AND TESTNET !
-    this._mnemonic = "neutral acoustic balance describe access pitch tourist skull recycle nation silent crawl"
+    //this._mnemonic = "neutral acoustic balance describe access pitch tourist skull recycle nation silent crawl"
 
 
     // Looking for seed file
@@ -43,9 +44,11 @@ class Wallet extends EventEmitter {
       fs.accessSync(SEED_FILE)
       this._seed = this._readSeedFile()
     } catch (err) {
-      this._createSeedFile()
+      this._seed = null
     }
-
+  }
+  
+  init () {
     // Need to generate the 20 addresses here
     for (let i = 0; i < 20; i++) {
       // We need 20 addresses for bloom filter to protect privacy and it is a standard
@@ -59,9 +62,9 @@ class Wallet extends EventEmitter {
     }
   }
 
-  _createSeedFile () {
-    var seed = this._getSeed()
-    fs.writeFileSync(SEED_FILE, JSON.stringify({seed: seed.toString('hex')}))
+  createSeedFile (mnemonic) {
+    this._seed = bip39.mnemonicToSeedSync(mnemonic)
+    fs.writeFileSync(SEED_FILE, JSON.stringify({seed: this._seed.toString('hex')}), { flag: 'w' })
   }
 
   _readSeedFile () {
@@ -70,19 +73,12 @@ class Wallet extends EventEmitter {
     return Buffer.from(jsonData.seed, 'hex')
   }
 
-  _generateMnemonic () {
-    if (this._mnemonic) {
-
-      debug("You already have a mnemonic registered")
-      return false
-    }
-    this._mnemonic = bip39.generateMnemonic()
-    return this._mnemonic
+  generateMnemonic () {
+    return bip39.generateMnemonic()
   }
 
   _getSeed () {
-    if (!this._mnemonic) throw new Error('You need to generate a mnemonic first')
-    this._seed = bip39.mnemonicToSeedSync(this._mnemonic)
+    if (!this._seed) { this._seed = this._readSeedFile() }
     return this._seed
   }
 

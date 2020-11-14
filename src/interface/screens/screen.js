@@ -3,7 +3,7 @@ const EventEmitter = require('events')
 /* 
   Abstract class to help define a screen.
 */
-class Screen extends EventEmitter{
+class Screen extends EventEmitter {
   numberOfLines = 0
   cursorPosition = 0
   lock = false

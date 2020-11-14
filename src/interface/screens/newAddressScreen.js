@@ -15,8 +15,7 @@ class NewAddressScreen extends Screen {
   }
   
   keyPressed (key) {
-    debug(key)
-    return
+    return true
   }
   
   update () {

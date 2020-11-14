@@ -1,16 +1,13 @@
-const SPVNode = require('./src/spvnode')
-const Wallet = require('./src/wallet')
-const constants = require('./src/constants')
-const network = require('./src/network')
+const SPVNode = require('./spvnode')
+const Wallet = require('./wallet')
+const constants = require('./constants')
+const network = require('./network')
 const debug = require('debug')('main')
-const Interface = require('./src/interface/interface')
-const Store = require('./src/store/store')
+const Interface = require('./interface/interface')
+const Store = require('./store/store')
 
 const fs = require('fs')
 const path = require('path');
-
-// TODO: regtest IP node should be moved to constant
-const NODE_IP = '127.0.0.1'
 
 async function main () {
 
@@ -24,6 +21,9 @@ async function main () {
     fs.mkdirSync(path.join(constants.DATA_FOLDER, 'spvnode'))
     fs.mkdirSync(path.join(constants.DATA_FOLDER, 'wallet'))
   }
+  
+  const SEED_FILE = path.join(constants.DATA_FOLDER, 'seed.json')
+
 
   //////////////////////////////////
   //
@@ -65,6 +65,9 @@ async function main () {
 
   // Will be needed in the interface
   const getAddress = () => { return wallet.getAddress() }
+  
+  // Generate mnmonic in case we don't have one yet
+  const generateMnemonic = () => { return }
 
   //////////////////////////////////
   //
@@ -76,6 +79,31 @@ async function main () {
     getAddress,
     sendTransaction
   })
+  
+  // Going to glitch ?
+  
+  ///////////////////////////////////
+  //
+  //   Do we have seed already ?
+  //
+  //////////////////////////////////
+  try {
+    fs.accessSync(SEED_FILE)
+  } catch (err) {
+    const mnemonic = wallet.generateMnemonic() 
+    wallet.createSeedFile(mnemonic)
+    interface.showMnemonicScreen(mnemonic)
+    // TODO: It has to be a better way
+    while (!interface.screen.continue) {
+      await new Promise(r => setTimeout(r, 2000))
+    }
+  }
+  
+  // We made sure we have a seed file
+  wallet.init()
+  
+  // show main screen
+  interface.showMainScreen()
 
   //////////////////////////////////
   //
@@ -178,13 +206,13 @@ async function main () {
 
   //////////////////////////////////
   //
-  // Staring this damn app
+  // Starting this damn app
   //
   //////////////////////////////////
 
   // Add regtest peer
   if (process.env.NETWORK === network.REGTEST) {
-    await spvnode.addPeer(NODE_IP, constants.DEFAULT_PORT)
+    await spvnode.addPeer(constants.NODE_IP, constants.DEFAULT_PORT)
   }
 
   await spvnode.start()
