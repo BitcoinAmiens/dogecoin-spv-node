@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const meow = require('meow')
-const app = require('./app')
+const app = require('../app')
+const networks = require('../network')
 
 const cli = meow(`
     !!! Important !!!
@@ -25,9 +26,19 @@ const cli = meow(`
             alias: 'r'
         }
     }
-});
+})
 
-app()
+if (cli.input[0] !== 'start') {
+  cli.showHelp()
+}
+
+var network = networks.TESTNET
+
+if (cli.flags.regtest) {
+  network = networks.REGTEST
+}
+
+app({network})
   .catch(function (err) {
-    debug(err)
+    console.error(err)
   })

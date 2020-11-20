@@ -1,7 +1,7 @@
 {
   "name": "spv-node",
   "version": "0.0.0",
-  "description": "dogecoin",
+  "description": "Dogecoin SPV wallet (beta)",
   "main": "./bin/main.js",
   "scripts": {
     "start": "DEBUG=* node src/main.js",

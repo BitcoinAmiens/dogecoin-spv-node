@@ -1,5 +1,6 @@
 const constants = require('./constants').constants
 const networks = require('./network')
+const path = require('path')
 
 function getSettings (network) {
   let settings

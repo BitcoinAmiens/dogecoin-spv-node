@@ -32,11 +32,11 @@ class Wallet extends EventEmitter {
     this.unspentOutputs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'unspent'), {valueEncoding: 'json'})
     this.txs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'tx'), {valueEncoding: 'json'})
 
-    const seed_file = path.join(this.settings.DATA_FOLDER, 'seed.json')
+    this.seed_file = path.join(this.settings.DATA_FOLDER, 'seed.json')
 
     // Looking for seed file
     try {
-      fs.accessSync(seed_file)
+      fs.accessSync(this.seed_file)
       this._seed = this._readSeedFile()
     } catch (err) {
       this._seed = null
@@ -59,11 +59,11 @@ class Wallet extends EventEmitter {
 
   createSeedFile (mnemonic) {
     this._seed = bip39.mnemonicToSeedSync(mnemonic)
-    fs.writeFileSync(SEED_FILE, JSON.stringify({seed: this._seed.toString('hex')}), { flag: 'w' })
+    fs.writeFileSync(this.seed_file, JSON.stringify({seed: this._seed.toString('hex')}), { flag: 'w' })
   }
 
   _readSeedFile () {
-    var data = fs.readFileSync(SEED_FILE)
+    var data = fs.readFileSync(this.seed_file)
     var jsonData = JSON.parse(data)
     return Buffer.from(jsonData.seed, 'hex')
   }

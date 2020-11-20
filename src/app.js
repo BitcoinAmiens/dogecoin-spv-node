@@ -2,6 +2,7 @@ const SPVNode = require('./spvnode')
 const Wallet = require('./wallet')
 const { getSettings } = require('./settings')
 const networks = require('./network')
+const { setupLog } = require('./debug')
 const debug = require('debug')('app')
 const Interface = require('./interface/interface')
 const Store = require('./store/store')
@@ -17,6 +18,8 @@ async function app (args) {
   }
   
   var settings = getSettings(args.network)
+  // Redirect output stream to log file
+  setupLog()
 
   //////////////////////////////////
   //
@@ -37,7 +40,7 @@ async function app (args) {
   // Create Wallet
   //
   //////////////////////////////////
-  const wallet = new Wallet()
+  const wallet = new Wallet(settings)
 
   //////////////////////////////////
   //

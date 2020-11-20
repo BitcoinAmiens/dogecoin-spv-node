@@ -1,5 +1,5 @@
 var Peer = require('./peer')
-var debug = require('./debug')('spvnode')
+var debug = require('debug')('spvnode')
 var level = require('level')
 var BloomFilter = require('bloom-filter')
 var EventEmitter = require('events')
@@ -42,6 +42,8 @@ class SPVNode extends EventEmitter {
   constructor (addresses, settings) {
     super()
 
+    this.settings = settings
+    
     // Initiate only at creation
     this.headers = level(path.join(settings.DATA_FOLDER, 'spvnode', 'headers'), {valueEncoding: 'json'})
     this.merkles = level(path.join(settings.DATA_FOLDER, 'spvnode', 'merkles'), {valueEncoding: 'json'})
@@ -147,7 +149,7 @@ class SPVNode extends EventEmitter {
 
     // DNS peer
     var promises = []
-    settings.DNS_SEED.forEach((host) => {
+    this.settings.DNS_SEED.forEach((host) => {
       let promise = new Promise((resolve, reject) => {
         this._getDnsSeed(host)
           .then((result) => {
@@ -157,7 +159,7 @@ class SPVNode extends EventEmitter {
               // TODO: proper ban list
               if (BAN_LIST.indexOf(ip) >= 0) return
 
-              this.addPeer(ip, settings.DEFAULT_PORT)
+              this.addPeer(ip, this.settings.DEFAULT_PORT)
                 .then(function () {
                   debug('Peer ' + ip + ' added !' )
                   resolve()
@@ -271,7 +273,7 @@ class SPVNode extends EventEmitter {
   }
 
   addPeer (ip, port) {
-    var peer = new Peer(ip, port, this)
+    var peer = new Peer(ip, port, this, this.settings)
 
     return new Promise((resolve, reject) => {
       peer.connect()

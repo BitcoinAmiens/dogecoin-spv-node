@@ -1,4 +1,4 @@
-const network = {
+const networks = {
   REGTEST: 'regtest',
   TESTNET: 'testnet',
   MAINNET: 'mainnet'

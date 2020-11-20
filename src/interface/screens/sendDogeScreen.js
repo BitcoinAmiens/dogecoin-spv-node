@@ -123,7 +123,7 @@ class SendDogeScreen extends Screen {
 ================ SEND DOGECOINS ================
   ${rejectMessage}
 
-  Current balance: ${this.store.balance/constants.SATOSHIS} Ð                   
+  Current balance: ${this.store.balance/SATOSHIS} Ð                   
 
   Amount: ${this.renderAmountField()} Ð                                         
   To: ${this.renderToField()}
