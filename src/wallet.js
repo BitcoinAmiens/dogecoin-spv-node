@@ -126,7 +126,7 @@ class Wallet extends EventEmitter {
       }
     }
 
-    return pubkeyToAddress(Buffer.from(pk, 'hex'), this.settings.MAGIC_BYTES)
+    return pubkeyToAddress(Buffer.from(pk, 'hex'), this.settings.NETWORK_BYTE)
   }
 
   addTxToWallet (tx) {
@@ -229,7 +229,7 @@ class Wallet extends EventEmitter {
     const path = this.settings.PATH + (changeAddress ? '1':'0') + '/' + index
     const root = bip32.fromSeed(this._seed, this.settings.WALLET)
     const child = root.derivePath(path)
-    let address = pubkeyToAddress(child.publicKey, this.settings.MAGIC_BYTES)
+    let address = pubkeyToAddress(child.publicKey, this.settings.NETWORK_BYTE)
     this._updatePubkeysState(index, child.publicKey, changeAddress ? 1 : 0)
 
     return address
@@ -254,7 +254,7 @@ class Wallet extends EventEmitter {
     let changeAddress
     for (let [key, value] of this.pubkeys.entries()) {
       if (value.changeAddress && !value.used) {
-        changeAddress = pubkeyToAddress(Buffer.from(key, 'hex'), this.settings.MAGIC_BYTES)
+        changeAddress = pubkeyToAddress(Buffer.from(key, 'hex'), this.settings.NETWORK_BYTE)
         break
       }
     }

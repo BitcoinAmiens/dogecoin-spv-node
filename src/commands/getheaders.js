@@ -1,5 +1,5 @@
 const CompactSize = require('../utils/compactSize')
-const PROTOCOL_VERSION = require('./constants').PROTOCOL_VERSION
+const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
 
 // https://bitcoin.org/en/developer-reference#getblocks
 // getHeaders is similar to getBlock
