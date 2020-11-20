@@ -1,5 +1,5 @@
 const Screen = require('./screen')
-const constants = require('../../constants')
+const SATOSHIS = require('../../constants').SATOSHIS
 const KEYS = require('../keys')
 const debug = require('debug')('sendDogeScreen')
 const terminalStyle = require('../terminalStyle')

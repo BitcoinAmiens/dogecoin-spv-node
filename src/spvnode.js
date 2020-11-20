@@ -6,11 +6,8 @@ var EventEmitter = require('events')
 
 const bmp = require('bitcoin-merkle-proof')
 const dns = require('dns')
-const constants = require('./constants')
-const pubkeyToAddress = require('./utils/pubkeyToAddress')
 const doubleHash = require('./utils/doubleHash')
 const decodeHeader = require('./utils/decodeHeader')
-const fs = require('fs')
 const path = require('path')
 
 // slow nodes
@@ -28,15 +25,11 @@ class SPVNode extends EventEmitter {
   peers = []
   // Follow header heigh
   height = 0
-  // Do we still need this ? Now looking at tips
-  hash = constants.GENESIS_BLOCK_HASH
+  
   bestHeight = 0
   // Caching merkle block height for faster update
   // FIXME: should be merkle count and not height. We can receive it in an incorrect order...
   merkleHeight = 0
-  // need to be genesis block hash
-  merkleHash = constants.GENESIS_BLOCK_HASH
-
   // Count number of merkle block received before getting next round
   merkleBlockCount = 0
   // Keep a value of the hash
@@ -46,13 +39,19 @@ class SPVNode extends EventEmitter {
 
   tips = new Map()
 
-  constructor (addresses) {
+  constructor (addresses, settings) {
     super()
 
     // Initiate only at creation
-    this.headers = level(path.join(constants.DATA_FOLDER, 'spvnode', 'headers'), {valueEncoding: 'json'})
-    this.merkles = level(path.join(constants.DATA_FOLDER, 'spvnode', 'merkles'), {valueEncoding: 'json'})
-    this.tipsDB = level(path.join(constants.DATA_FOLDER, 'spvnode', 'tips'), {valueEncoding: 'json'})
+    this.headers = level(path.join(settings.DATA_FOLDER, 'spvnode', 'headers'), {valueEncoding: 'json'})
+    this.merkles = level(path.join(settings.DATA_FOLDER, 'spvnode', 'merkles'), {valueEncoding: 'json'})
+    this.tipsDB = level(path.join(settings.DATA_FOLDER, 'spvnode', 'tips'), {valueEncoding: 'json'})
+
+    // Do we still need this ? Now looking at tips
+    this.hash = settings.GENESIS_BLOCK_HASH
+    
+    // need to be genesis block hash
+    this.merkleHash = settings.GENESIS_BLOCK_HASH
 
     // Prepare filter here
     this.filter = BloomFilter.create(addresses.length, 0.001)
@@ -63,10 +62,6 @@ class SPVNode extends EventEmitter {
 
     // We want the filter to autoupdate
     this.filter.nFlags = 1
-
-    if (process.env.NETWORK === 'testnet') {
-      debug('We are on TESTNET !')
-    }
   }
   
   emitReject (rejectMessage) {
@@ -151,12 +146,10 @@ class SPVNode extends EventEmitter {
     await this._getMerkleHeightFromDB()
 
     // DNS peer
-    if (process.env.NETWORK !== 'regtest') {
-      debug('Resolving DNS seed')
-      var promises = []
-      constants.DNS_SEED.forEach((host) => {
-        let promise = new Promise((resolve, reject) => {
-          this._getDnsSeed(host)
+    var promises = []
+    settings.DNS_SEED.forEach((host) => {
+      let promise = new Promise((resolve, reject) => {
+        this._getDnsSeed(host)
           .then((result) => {
             result.forEach((ip) => {
               debug('Attempt connection with ', ip)
@@ -164,7 +157,7 @@ class SPVNode extends EventEmitter {
               // TODO: proper ban list
               if (BAN_LIST.indexOf(ip) >= 0) return
 
-              this.addPeer(ip, constants.DEFAULT_PORT)
+              this.addPeer(ip, settings.DEFAULT_PORT)
                 .then(function () {
                   debug('Peer ' + ip + ' added !' )
                   resolve()
@@ -172,24 +165,23 @@ class SPVNode extends EventEmitter {
                 .catch(function (err) {
                   debug(err)
 
-                  // Dont reject anymore instead save as broken
-                  // TODO: Wait for `any` to be supported and replace
-                  //reject(err)
+              // Dont reject anymore instead save as broken
+              // TODO: Wait for `any` to be supported and replace
+              //reject(err)
 
-                  //resolve()
-                })
+              //resolve()
             })
           })
-          .catch(function (err) {
-            debug(err)
-            reject()
-          })
         })
-        promises.push(promise)
+        .catch(function (err) {
+          debug(err)
+          reject()
+        })
       })
-      // Once we are connected to one we can start doing stuff
-      return Promise.race(promises)
-    }
+      promises.push(promise)
+    })
+    // Once we are connected to one we can start doing stuff
+    return Promise.race(promises)
   }
 
   _getDnsSeed (host) {
@@ -223,7 +215,7 @@ class SPVNode extends EventEmitter {
   synchronize () {
     debug('==== Starting synchronizing ====')
     if (this.peers.length <= 0) {
-      console.error(new Error('No peers.'))
+      debug('No peers.')
     }
 
     let hashes = [...this.tips.keys()]
@@ -479,7 +471,7 @@ class SPVNode extends EventEmitter {
             })
             .catch((err) => {
               // Just not found
-              if (header.previousHash === constants.PREVIOUS_HEADER) {
+              if (header.previousHash === settings.PREVIOUS_HEADER) {
                 // This is the block after the genesis block
                 header.height = 1
                 return

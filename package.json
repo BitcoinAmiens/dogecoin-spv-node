@@ -16,7 +16,7 @@
     ]
   },
   "bin": {
-    "dogecoin-spv": "./bin/main.js"
+    "dogecoin-spv": "./src/bin/main.js"
   },
   "ava": {
     "verbose": true,

@@ -4,4 +4,4 @@ const network = {
   MAINNET: 'mainnet'
 }
 
-module.exports = network;
+module.exports = networks;

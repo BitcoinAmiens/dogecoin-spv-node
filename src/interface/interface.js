@@ -1,4 +1,3 @@
-const constants = require('../constants')
 const KEYS = require('./keys')
 const terminalStyle = require('./terminalStyle')
 const EventEmitter = require('events')

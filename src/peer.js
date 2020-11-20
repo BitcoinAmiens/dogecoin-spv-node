@@ -19,11 +19,11 @@ const block = require('./commands/block')
 const merkleblock = require('./commands/merkleblock')
 const tx = require('./commands/tx')
 
-const { GENESIS_BLOCK_HASH } = require('./constants')
-
 class Peer extends EventEmitter {
-  constructor (ip, port, node) {
+  constructor (ip, port, node, settings) {
     super()
+
+    this.settings = settings
 
     this.node = node
 
@@ -55,7 +55,7 @@ class Peer extends EventEmitter {
         debug('Connecting to', this.ip)
         let versionObj = version.getVersion(this.ip, this.port)
         let message = version.encodeVersionMessage(versionObj)
-        const versionPacket = packet.preparePacket('version', message)
+        const versionPacket = packet.preparePacket('version', message, this.settings.MAGIC_BYTES)
 
         this.on('verack', function () {
           debug('Connected !')
@@ -111,7 +111,7 @@ class Peer extends EventEmitter {
     // decode packet need to be able to decode several message in one packet
     // https://stackoverflow.com/questions/1010753/missed-socket-message#1010777
     while (data.length > 0) {
-      var decodedResponse = packet.decodePacket(data)
+      var decodedResponse = packet.decodePacket(data, this.settings.MAGIC_BYTES)
       if (!decodedResponse) {
         this.incompleteData = Buffer.allocUnsafe(data.length)
         data.copy(this.incompleteData)
@@ -173,13 +173,13 @@ class Peer extends EventEmitter {
   }
 
   sendGetAddr () {
-    var getAddrMessage = packet.preparePacket('getaddr', Buffer.alloc(0))
+    var getAddrMessage = packet.preparePacket('getaddr', Buffer.alloc(0), this.settings.MAGIC_BYTES)
     this.socket.write(getAddrMessage)
   }
 
   sendFilterLoad (filter) {
     var payload = filterload.encodeFilterLoad(filter.toObject())
-    const filterloadMessage = packet.preparePacket('filterload', payload)
+    const filterloadMessage = packet.preparePacket('filterload', payload, this.settings.MAGIC_BYTES)
     return new Promise((resolve, reject) => {
       this.socket.write(filterloadMessage, function (err) {
         if (err) {
@@ -192,10 +192,10 @@ class Peer extends EventEmitter {
     })
   }
 
-  sendGetHeader (blockHash = [GENESIS_BLOCK_HASH]) {
+  sendGetHeader (blockHash) {
     debug(`peer n° ${this.id} getheaders\nAsked for : ${blockHash}`)
     let payload = getheaders.encodeGetheadersMessage(blockHash)
-    const getHeadersMessage = packet.preparePacket('getheaders', payload)
+    const getHeadersMessage = packet.preparePacket('getheaders', payload, this.settings.MAGIC_BYTES)
     this.socket.write(getHeadersMessage, function (err) {
       if (err) {
         console.error(err)
@@ -204,10 +204,10 @@ class Peer extends EventEmitter {
     })
   }
 
-  sendGetBlocks (blockHash = [GENESIS_BLOCK_HASH], lastHash = "0000000000000000000000000000000000000000000000000000000000000000") {
+  sendGetBlocks (blockHash, lastHash = "0000000000000000000000000000000000000000000000000000000000000000") {
     debug(`peer n° ${this.id} getblocks\nAsked for : ${blockHash}`)
     let payload = getblocks.encodeGetblocksMessage(blockHash, lastHash)
-    const getBlocksMessage = packet.preparePacket('getblocks', payload)
+    const getBlocksMessage = packet.preparePacket('getblocks', payload, this.settings.MAGIC_BYTES)
     this.socket.write(getBlocksMessage, function (err) {
       if (err) {
         console.error(err)
@@ -218,7 +218,7 @@ class Peer extends EventEmitter {
 
   sendGetData (inv) {
     debug(`peer n° ${this.id} getdata`)
-    let getDataMessage = packet.preparePacket('getdata', inv)
+    let getDataMessage = packet.preparePacket('getdata', inv, this.settings.MAGIC_BYTES)
     this.socket.write(getDataMessage, function (err) {
       if (err) {
         console.error(err)
@@ -230,7 +230,7 @@ class Peer extends EventEmitter {
   sendFilterAdd (element) {
     // TODO: using 'filteradd' has big privacy issues !
     let payload = filteradd.encodeFilterAdd(Buffer.from(element, 'hex'))
-    const filteraddMessage = packet.preparePacket('filteradd', payload)
+    const filteraddMessage = packet.preparePacket('filteradd', payload, this.settings.MAGIC_BYTES)
     return new Promise((resolve, reject) => {
       this.socket.write(filteraddMessage, function (err) {
         if (err) {
@@ -243,7 +243,7 @@ class Peer extends EventEmitter {
   }
 
   sendRawTransaction (rawTransaction) {
-    var txMessage = packet.preparePacket('tx', rawTransaction)
+    var txMessage = packet.preparePacket('tx', rawTransaction, this.settings.MAGIC_BYTES)
     this.socket.write(txMessage, function (err) {
       if (err) {
         console.error(err)
@@ -254,12 +254,12 @@ class Peer extends EventEmitter {
   }
 
   _sendVerackMessage () {
-    let verackMessage = packet.preparePacket('verack', Buffer.alloc(0))
+    let verackMessage = packet.preparePacket('verack', Buffer.alloc(0), this.settings.MAGIC_BYTES)
     this.socket.write(verackMessage)
   }
 
   _sendPongMessage (nonce) {
-    let pongMessage = packet.preparePacket('pong', nonce)
+    let pongMessage = packet.preparePacket('pong', nonce, this.settings.MAGIC_BYTES)
     this.socket.write(pongMessage)
   }
 

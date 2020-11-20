@@ -1,7 +1,6 @@
 const CompactSize = require('../utils/compactSize')
 const { readU64 } = require('../utils/write64')
 const doubleHash = require('../utils/doubleHash')
-const fs = require('fs')
 
 function decodeHeadersMessage (payload) {
   var headers = {}
@@ -29,8 +28,6 @@ function decodeHeadersMessage (payload) {
     offset += 32
 
     if (header.previousHash === '0000000000000000000000000000000000000000000000000000000000000000') {
-      // fs.writeFileSync('test/headers/data3.json', JSON.stringify(data))
-
       throw Error('PREVIOUS HASH SHOULD NOT BE NULL')
     }
 
