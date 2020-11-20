@@ -7,7 +7,7 @@
     "start": "DEBUG=* node src/main.js",
     "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon src/main.js",
     "clean": "rm -rf data",
-    "test": "NETWORK=testnet ava",
+    "test": "NETWORK=testnet nyc ava",
     "generate": "node test/tools/generate.js"
   },
   "nodemonConfig": {
@@ -33,7 +33,8 @@
   "license": "ISC",
   "devDependencies": {
     "ava": "^3.12.1",
-    "nodemon": "^1.14.8"
+    "nodemon": "^1.14.8",
+    "nyc": "^15.1.0"
   },
   "dependencies": {
     "bip32": "^2.0.3",
