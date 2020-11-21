@@ -17,6 +17,7 @@ const { preparePacket, decodePacket } = require('../src/commands/packet')
 
 
 const TEST_VECTORS_DIR = path.join('.', 'test', 'test_vectors')
+const TESTNET_MAGIC_BYTES = 0xdcb7c1fc
 
 /*
     Payloads encoding and decoding !
@@ -145,7 +146,7 @@ test('successfully encode packet', t => {
   let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'packet.json'), { encoding: 'utf-8' })
   data =  JSON.parse(data)
   
-  let result = preparePacket(data.value.cmd, Buffer.from(data.value.payload, 'hex'))
+  let result = preparePacket(data.value.cmd, Buffer.from(data.value.payload, 'hex'), TESTNET_MAGIC_BYTES)
 
   t.is(data.hex, result.toString('hex'))
 })
@@ -154,7 +155,7 @@ test('successfully decode packet', t => {
   let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'packet.json'), { encoding: 'utf-8' })
   data =  JSON.parse(data)
   
-  let result = decodePacket(Buffer.from(data.hex, 'hex'))
+  let result = decodePacket(Buffer.from(data.hex, 'hex'), TESTNET_MAGIC_BYTES)
 
   t.is(data.value.cmd, result.cmd)
   t.is(data.value.lenght, result.lenght)

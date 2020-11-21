@@ -8,7 +8,7 @@
 - [ ] Tor mode (but then filter need to be randomize)
 - [x] We should calculate balance from unspent tx in wallet
 - ~~[ ] Daemonize~~ (not here directly)
-- [ ] Create a CLI (see `bin` folder)
+- [x] Create a CLI (see `bin` folder)
 - [ ] Fill mainnet DNS values
 - [x] Different database folder for regtest/testnet/mainnet
 - [ ] Adding `--no-interface` argument

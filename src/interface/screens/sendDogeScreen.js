@@ -1,5 +1,5 @@
 const Screen = require('./screen')
-const constants = require('../../constants')
+const SATOSHIS = require('../../constants').SATOSHIS
 const KEYS = require('../keys')
 const debug = require('debug')('sendDogeScreen')
 const terminalStyle = require('../terminalStyle')
@@ -123,7 +123,7 @@ class SendDogeScreen extends Screen {
 ================ SEND DOGECOINS ================
   ${rejectMessage}
 
-  Current balance: ${this.store.balance/constants.SATOSHIS} Ð                   
+  Current balance: ${this.store.balance/SATOSHIS} Ð                   
 
   Amount: ${this.renderAmountField()} Ð                                         
   To: ${this.renderToField()}

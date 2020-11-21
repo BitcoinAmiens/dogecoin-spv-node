@@ -19,25 +19,24 @@ var level = require('level')
 
 //const Transport = require('@ledgerhq/hw-transport-node-hid').default
 //const AppBtc = require('@ledgerhq/hw-app-btc').default
-// TODO: constants values should be constructor arguments
-const constants = require('./constants')
 const pubkeyToAddress = require('./utils/pubkeyToAddress')
-
-const SEED_FILE = path.join(constants.DATA_FOLDER, 'seed.json')
 
 // HD wallet for dogecoin
 class Wallet extends EventEmitter {
-  constructor () {
+  constructor (settings) {
     super()
 
+    this.settings = settings
     this.pubkeys = new Map()
     this.pubkeyHashes = new Map()
-    this.unspentOutputs = level(path.join(constants.DATA_FOLDER, 'wallet', 'unspent'), {valueEncoding: 'json'})
-    this.txs = level(path.join(constants.DATA_FOLDER, 'wallet', 'tx'), {valueEncoding: 'json'})
+    this.unspentOutputs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'unspent'), {valueEncoding: 'json'})
+    this.txs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'tx'), {valueEncoding: 'json'})
+
+    this.seed_file = path.join(this.settings.DATA_FOLDER, 'seed.json')
 
     // Looking for seed file
     try {
-      fs.accessSync(SEED_FILE)
+      fs.accessSync(this.seed_file)
       this._seed = this._readSeedFile()
     } catch (err) {
       this._seed = null
@@ -60,11 +59,11 @@ class Wallet extends EventEmitter {
 
   createSeedFile (mnemonic) {
     this._seed = bip39.mnemonicToSeedSync(mnemonic)
-    fs.writeFileSync(SEED_FILE, JSON.stringify({seed: this._seed.toString('hex')}), { flag: 'w' })
+    fs.writeFileSync(this.seed_file, JSON.stringify({seed: this._seed.toString('hex')}), { flag: 'w' })
   }
 
   _readSeedFile () {
-    var data = fs.readFileSync(SEED_FILE)
+    var data = fs.readFileSync(this.seed_file)
     var jsonData = JSON.parse(data)
     return Buffer.from(jsonData.seed, 'hex')
   }
@@ -80,7 +79,7 @@ class Wallet extends EventEmitter {
 
   _getMasterPrivKey () {
     if (!this._seed) throw new Error('You need your seed first')
-    const root = bip32.fromSeed(this._seed, constants.WALLET)
+    const root = bip32.fromSeed(this._seed, this.settings.WALLET)
     return root.toBase58()
   }
 
@@ -117,15 +116,6 @@ class Wallet extends EventEmitter {
     })
   }
 
-  // TODO: NOT GOOD
-  getPubKey () {
-    const path = "m/44'/3'/0'/0/0"
-    // Waste of computing power to regenerate root
-    const root = bip32.fromSeed(this._seed, constants.WALLET)
-    const child1 = root.derivePath(path)
-    return child1.publicKey
-  }
-
   getAddress () {
     const iterator = this.pubkeys[Symbol.iterator]()
 
@@ -136,7 +126,7 @@ class Wallet extends EventEmitter {
       }
     }
 
-    return pubkeyToAddress(Buffer.from(pk, 'hex'))
+    return pubkeyToAddress(Buffer.from(pk, 'hex'), this.settings.NETWORK_BYTE)
   }
 
   addTxToWallet (tx) {
@@ -236,10 +226,10 @@ class Wallet extends EventEmitter {
 
   generateNewAddress (changeAddress = false) {
     const index = this._getNextIndex(changeAddress)
-    const path = constants.PATH + (changeAddress ? '1':'0') + '/' + index
-    const root = bip32.fromSeed(this._seed, constants.WALLET)
+    const path = this.settings.PATH + (changeAddress ? '1':'0') + '/' + index
+    const root = bip32.fromSeed(this._seed, this.settings.WALLET)
     const child = root.derivePath(path)
-    let address = pubkeyToAddress(child.publicKey)
+    let address = pubkeyToAddress(child.publicKey, this.settings.NETWORK_BYTE)
     this._updatePubkeysState(index, child.publicKey, changeAddress ? 1 : 0)
 
     return address
@@ -254,8 +244,8 @@ class Wallet extends EventEmitter {
   }
 
   getPrivateKey (index, change) {
-    const path = constants.PATH + change + '/' + index
-    const root = bip32.fromSeed(this._seed, constants.WALLET)
+    const path = this.settings.PATH + change + '/' + index
+    const root = bip32.fromSeed(this._seed, this.settings.WALLET)
     const child = root.derivePath(path)
     return child
   }
@@ -264,7 +254,7 @@ class Wallet extends EventEmitter {
     let changeAddress
     for (let [key, value] of this.pubkeys.entries()) {
       if (value.changeAddress && !value.used) {
-        changeAddress = pubkeyToAddress(Buffer.from(key, 'hex'))
+        changeAddress = pubkeyToAddress(Buffer.from(key, 'hex'), this.settings.NETWORK_BYTE)
         break
       }
     }
@@ -353,7 +343,7 @@ class Wallet extends EventEmitter {
     pkScript = Buffer.from('76a914'+ test.toString('hex') + '88ac', 'hex')
 
     // TODO: fees for now make it 1 DOGE
-    let fee = 1*constants.SATOSHIS
+    let fee = 1*this.settings.SATOSHIS
     if (total > amount) {
       transaction.txOuts[1] = {
         value: total - amount - fee,

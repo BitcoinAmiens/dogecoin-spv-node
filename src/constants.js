@@ -1,14 +1,12 @@
-const network = require('./network')
-const path = require('path');
-
-var settings = {
+const constants = {
   regtest: {
     DATA_SUBFOLDER: 'regtest',
-    PROTOCOL_VERSION: 70004,
     MAGIC_BYTES: 0xdab5bffa,
     SATOSHIS: 100000000,
     GENESIS_BLOCK_HASH: '3d2160a3b5dc4a9d62e7e66a295f70313ac808440ef7400d6c0772171ce973a5',
     PREVIOUS_HEADER: 'a573e91c1772076c0d40f70e4408c83a31705f296ae6e7629d4adcb5a360213d',
+    // Keep this empty. No DNS seed for regtest.
+    DNS_SEED: [],
     NODE_IP: '127.0.0.1',
     DEFAULT_PORT: 18444,
     NETWORK_BYTE: '6f',
@@ -23,7 +21,6 @@ var settings = {
   },
   testnet: {
     DATA_SUBFOLDER: 'testnet',
-    PROTOCOL_VERSION: 70004,
     MAGIC_BYTES: 0xdcb7c1fc,
     SATOSHIS: 100000000,
     GENESIS_BLOCK_HASH: 'bb0a78264637406b6360aad926284d544d7049f45189db5664f3c4d07350559e',
@@ -42,7 +39,6 @@ var settings = {
   },
   mainnet: {
     DATA_SUBFOLDER: '.',
-    PROTOCOL_VERSION: 70004,
     MAGIC_BYTES: 0xc0c0c0c0,
     SATOSHIS: 100000000,
     GENESIS_BLOCK_HASH: 'NO',
@@ -61,16 +57,8 @@ var settings = {
   }
 }
 
-var constants = settings.mainnet
-
-if (process.env.NETWORK === network.TESTNET) {
-  constants = settings.testnet
+module.exports = {
+  constants,
+  SATOSHIS: 100000000,
+  PROTOCOL_VERSION: 70004
 }
-
-if (process.env.NETWORK === network.REGTEST) {
-  constants = settings.regtest
-}
-
-constants.DATA_FOLDER = path.join(__dirname, '..', 'data', constants.DATA_SUBFOLDER)
-
-module.exports = constants

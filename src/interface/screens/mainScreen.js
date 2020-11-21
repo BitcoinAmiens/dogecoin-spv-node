@@ -1,7 +1,7 @@
 const Screen = require('./screen')
 const KEYS = require('../keys')
-const constants = require('../../constants')
 const debug = require('debug')('mainScreen')
+const SATOSHIS = require('../../constants').SATOSHIS
 
 class MainScreen extends Screen {
   constructor (args) {
@@ -72,7 +72,7 @@ class MainScreen extends Screen {
 
 ================ Wallet =============================
 
-    Balance: ${balance/constants.SATOSHIS} Ð
+    Balance: ${balance/SATOSHIS} Ð
 
 ================ Menu ===============================
 

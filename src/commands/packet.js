@@ -1,13 +1,12 @@
 var crypto = require('crypto')
-const MAGIC_BYTES = require('../constants').MAGIC_BYTES
 
-function preparePacket (cmd, payload) {
+function preparePacket (cmd, payload, magic_bytes) {
   const msg = Buffer.alloc(24 + payload.length)
   let checksum
 
   // Magic value
   // testnet : 0xdcb7c1fc
-  msg.writeUInt32LE(MAGIC_BYTES, 0, true)
+  msg.writeUInt32LE(magic_bytes, 0, true)
 
   // Command
   msg.write(cmd, 4, 'ascii')
@@ -32,7 +31,7 @@ function preparePacket (cmd, payload) {
   return msg
 }
 
-function decodePacket (packet) {
+function decodePacket (packet, magic_bytes) {
   let packets = []
   let offset = 0
 
@@ -44,9 +43,9 @@ function decodePacket (packet) {
   let magicBytes = packet.readUInt32LE(offset)
 
   // Be sure we are on the same network and same protocol
-  if (magicBytes !== MAGIC_BYTES) {
+  if (magicBytes !== magic_bytes) {
     // If not send "reject" message ?
-    console.error('Wrong MAGIC_BYTES : ', magicBytes)
+    console.error('Wrong magic bytes : ', magicBytes)
     return false
   }
   // Update the offset to the next payload parts

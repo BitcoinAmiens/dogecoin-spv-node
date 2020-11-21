@@ -1,12 +1,9 @@
 const CompactSize = require('../utils/compactSize')
-const debug = require('debug')('merkle')
 
 function decodeMerkleblockMessage (payload) {
   var merkleblock = {}
   let offset = 0
   var compactSize
-
-  //debug('Merkle message length :', payload.length)
 
   if (payload.slice(1,4).toString('hex') === '016200') {
     // Merged mining block header
