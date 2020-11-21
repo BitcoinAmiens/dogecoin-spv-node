@@ -8,6 +8,8 @@ const path = require('path')
 test.before(t => {
   // setup wallet files
   let settings = getSettings(networks.REGTEST)
+  // Only use this mnemonic for test!
+  const mnemonic = 'neutral acoustic balance describe access pitch tourist skull recycle nation silent crawl'
 
   if (!fs.existsSync(settings.DATA_FOLDER)) {
     fs.mkdirSync(settings.DATA_FOLDER, {recursive: true})
