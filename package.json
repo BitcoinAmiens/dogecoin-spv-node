@@ -30,7 +30,7 @@
     "spvnode"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "WTFPL",
   "devDependencies": {
     "ava": "^3.12.1",
     "nodemon": "^1.14.8",
