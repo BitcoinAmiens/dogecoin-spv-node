@@ -1,8 +1,8 @@
 const test = require('ava')
 
-const CompactSize = require('../src/utils/compactSize')
-const doubleHash = require('../src/utils/doubleHash')
-const pubkeyToAddress = require('../src/utils/pubkeyToAddress')
+const CompactSize = require('../../src/utils/compactSize')
+const doubleHash = require('../../src/utils/doubleHash')
+const pubkeyToAddress = require('../../src/utils/pubkeyToAddress')
 
 const TESTNET_NETWORK_BYTE = '71'
 

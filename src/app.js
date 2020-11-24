@@ -6,9 +6,11 @@ const { setupLog } = require('./debug')
 const debug = require('debug')('app')
 const Interface = require('./interface/interface')
 const Store = require('./store/store')
+const { OSNotSupported } = require('./error')
 
 const fs = require('fs')
 const path = require('path')
+const process = require('process')
 
 // TODO: app args should be the app settings
 async function app (args) {
@@ -17,7 +19,12 @@ async function app (args) {
     throw new Error('`network` argument is required.')
   }
   
-  var settings = getSettings(args.network)
+  // Only support 'linux' for now
+  if (process.platform !== 'linux') {
+    throw new OSNotSupported(process.platform)
+  }
+  
+  var settings = getSettings(args.network, args.dev)
   // Redirect output stream to log file
   setupLog()
 

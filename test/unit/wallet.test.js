@@ -1,7 +1,7 @@
 const test = require('ava')
-const Wallet = require('../src/wallet')
-const { getSettings } = require('../src/settings')
-const networks = require('../src/network')
+const Wallet = require('../../src/wallet')
+const { getSettings } = require('../../src/settings')
+const networks = require('../../src/network')
 const fs = require('fs')
 const path = require('path')
 

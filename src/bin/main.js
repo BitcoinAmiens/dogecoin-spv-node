@@ -15,6 +15,7 @@ const cli = meow(`
 
     Options
       --regtest, -r  Start in regtest mode
+      --dev, -d      Start node as dev (local data folder and not user)
 
     Examples
       $ dogecoin-spv start --regtest
@@ -24,6 +25,10 @@ const cli = meow(`
         regtest: {
             type: 'boolean',
             alias: 'r'
+        },
+        dev: {
+          type: 'boolean',
+          alias: 'd'
         }
     }
 })
@@ -38,7 +43,7 @@ if (cli.flags.regtest) {
   network = networks.REGTEST
 }
 
-app({network})
+app({network, dev: cli.flags.dev})
   .catch(function (err) {
     console.error(err)
   })

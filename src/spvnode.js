@@ -146,6 +146,8 @@ class SPVNode extends EventEmitter {
     await this._getTipsFromDB()
 
     await this._getMerkleHeightFromDB()
+    
+    if (this.settings.DNS_SEED.length <= 0) { return }
 
     // DNS peer
     var promises = []
@@ -473,7 +475,7 @@ class SPVNode extends EventEmitter {
             })
             .catch((err) => {
               // Just not found
-              if (header.previousHash === settings.PREVIOUS_HEADER) {
+              if (header.previousHash === this.settings.PREVIOUS_HEADER) {
                 // This is the block after the genesis block
                 header.height = 1
                 return
