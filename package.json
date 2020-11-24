@@ -8,7 +8,7 @@
     "spvnode"
   ],
   "author": "Lola Rigaut-Luczak <me@laflemme.lol>",
-  "license": "ISC",
+  "license": "WTFPL",
   "main": "./src/bin/main.js",
   "scripts": {
     "start": "DEBUG=* node src/main.js",
@@ -36,8 +36,6 @@
     "README.md",
     "package-lock.json"
   ],
-  "author": "",
-  "license": "WTFPL",
   "devDependencies": {
     "ava": "^3.12.1",
     "nodemon": "^1.14.8",
