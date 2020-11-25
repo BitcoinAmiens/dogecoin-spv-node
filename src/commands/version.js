@@ -1,23 +1,19 @@
 const {write64, readI64, readU64} = require('../utils/write64')
 const binet = require('exp-net')
 const CompactSize = require('../utils/compactSize')
+const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
 
-const NODE_IP = '163.172.182.246'
-const NODE_PORT = 44556
-const PROTOCOL_VERSION = 70004
+const NODE_PORT = 0
 
-function versionMessage () {
-  const buffer = new Buffer.alloc(86)
-  let offset = 0
-
-  var payload = {
+function getVersion (ip, port) {
+  let version = {
     version: PROTOCOL_VERSION,
     services: 4,
     time: Date.now(),
     remote : {
       services: 1,
-      host: NODE_IP,
-      port: NODE_PORT
+      host: ip,
+      port: port
     },
     local: {
       services: 4,
@@ -27,8 +23,15 @@ function versionMessage () {
     agent: 0,
     nonce: 0,
     height: 0,
-    relay: true
+    relay: false
   }
+  
+  return version
+}
+
+function encodeVersionMessage (payload) {
+  const buffer = new Buffer.alloc(86)
+  let offset = 0
 
   offset = buffer.writeInt32LE(payload.version, offset, true)
   offset = write64(buffer, payload.services, offset, false)
@@ -79,19 +82,6 @@ function decodeVersionMessage (data) {
 
   offset += 8
 
-  version.remote = {}
-
-  version.remote.services = data.readUInt32LE(offset)
-  // The last 4 bytes are not used
-  offset += 8
-
-  var host = data.slice(offset, offset + 16)
-  version.remote.host = binet.toString(host)
-  offset += 16
-
-  version.remote.port = data.readUInt16BE(offset)
-  offset += 2
-
   version.local = {}
 
   version.local.services = data.readUInt32LE(offset)
@@ -103,6 +93,19 @@ function decodeVersionMessage (data) {
   offset += 16
 
   version.local.port = data.readUInt16BE(offset)
+  offset += 2
+
+  version.remote = {}
+
+  version.remote.services = data.readUInt32LE(offset)
+  // The last 4 bytes are not used
+  offset += 8
+
+  var host = data.slice(offset, offset + 16)
+  version.remote.host = binet.toString(host)
+  offset += 16
+
+  version.remote.port = data.readUInt16BE(offset)
   offset += 2
 
   var nonce = readU64(data, offset)
@@ -127,4 +130,4 @@ function decodeVersionMessage (data) {
   return version
 }
 
-module.exports = { versionMessage, decodeVersionMessage }
+module.exports = { encodeVersionMessage, decodeVersionMessage, getVersion }

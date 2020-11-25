@@ -14,7 +14,6 @@ function encodeFilterLoad (filter) {
   }
 
   buffer.writeInt32LE(filter.nHashFuncs, offset)
-  console.log(buffer)
   offset += 4
 
   buffer.writeInt32LE(filter.nTweak, offset)

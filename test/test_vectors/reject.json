@@ -1,0 +1,11 @@
+{
+  "hex": "02747812156261642d74786e732d696e707574732d7370656e74394715fcab51093be7bfca5a31005972947baf86a31017939575fb2354222821",
+  "value": {
+    "messageLength": 2,
+    "message": "tx",
+    "code": "12",
+    "reasonLength": 21,
+    "reason": "bad-txns-inputs-spent",
+    "extraData": "394715fcab51093be7bfca5a31005972947baf86a31017939575fb2354222821"
+  }
+}

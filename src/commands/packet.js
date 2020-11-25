@@ -1,13 +1,12 @@
 var crypto = require('crypto')
-const MAGIC_BYTES = require('../constants').MAGIC_BYTES
 
-function preparePacket (cmd, payload) {
+function preparePacket (cmd, payload, magic_bytes) {
   const msg = Buffer.alloc(24 + payload.length)
   let checksum
 
   // Magic value
   // testnet : 0xdcb7c1fc
-  msg.writeUInt32LE(MAGIC_BYTES, 0, true)
+  msg.writeUInt32LE(magic_bytes, 0, true)
 
   // Command
   msg.write(cmd, 4, 'ascii')
@@ -32,34 +31,59 @@ function preparePacket (cmd, payload) {
   return msg
 }
 
-function decodePacket (packet) {
+function decodePacket (packet, magic_bytes) {
   let packets = []
   let offset = 0
 
-  console.log(packet)
+  if (packet.length < 4) {
+    // console.log('Incorrect packet ' + packet.toString('hex'))
+    return false
+  }
+
+  let magicBytes = packet.readUInt32LE(offset)
 
   // Be sure we are on the same network and same protocol
-  if (packet.readUInt32LE(offset) !== MAGIC_BYTES) {
+  if (magicBytes !== magic_bytes) {
     // If not send "reject" message ?
+    console.error('Wrong magic bytes : ', magicBytes)
     return false
   }
   // Update the offset to the next payload parts
   offset += 4
 
-  // Get the command
-  var cmd = packet.toString('ascii', offset, 12).replace(/\0/g, '')
+  // check size
+  if ( packet.length < offset + 12) {
+    return false
+  }
 
+  // Get the command
+  var cmd = packet.toString('ascii', offset, offset + 12).replace(/\0/g, '')
   offset += 12
 
+  // check size
+  if ( packet.length < offset + 4) {
+    return false
+  }
   var length = packet.readUInt32LE(offset)
-
   offset += 4
 
+  // check size
+  if ( packet.length < offset + 4) {
+    return false
+  }
   var checksum = packet.slice(offset, offset + 4)
-
   offset += 4
 
+  // check size
+  if ( packet.length < offset + length) {
+    return false
+  }
   var payload = packet.slice(offset, offset + length)
+
+  if (payload.length !== length) {
+    console.log('MISSING PARTS !!!')
+    return false
+  }
 
   var checksumToVerify = crypto.createHash('sha256').update(payload).digest()
   checksumToVerify = crypto.createHash('sha256').update(checksumToVerify).digest()
@@ -67,6 +91,8 @@ function decodePacket (packet) {
   if (!Buffer.compare(checksum, checksumToVerify.slice(0,4))) {
     return {cmd, payload, length}
   }
+
+  console.error('Incorrect checksum !')
 
   return false
 }

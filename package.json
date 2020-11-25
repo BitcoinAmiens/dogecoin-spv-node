@@ -1,25 +1,61 @@
 {
-  "name": "spv-node",
-  "version": "0.0.0",
-  "description": "dogecoin",
-  "main": "main.js",
-  "scripts": {
-    "start": "nodemon main.js",
-    "bloom": "nodemon src/utils/bloom.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "name": "dogecoin-spv",
+  "version": "0.1.0",
+  "description": "Dogecoin SPV wallet (beta)",
   "keywords": [
     "dogecoin",
     "spv",
     "spvnode"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Lola Rigaut-Luczak <me@laflemme.lol>",
+  "license": "WTFPL",
+  "main": "./src/bin/main.js",
+  "scripts": {
+    "start": "DEBUG=* node src/main.js",
+    "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon src/main.js",
+    "clean": "rm -rf data",
+    "test": "NETWORK=testnet nyc ava",
+    "generate": "node test/tools/generate.js"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "test/*"
+    ]
+  },
+  "bin": {
+    "dogecoin-spv": "./src/bin/main.js"
+  },
+  "ava": {
+    "verbose": true,
+    "files": [
+      "test/unit/*.test.js"
+    ]
+  },
+  "files": [
+    "src/*",
+    "README.md",
+    "package-lock.json"
+  ],
   "devDependencies": {
-    "nodemon": "^1.14.8"
+    "ava": "^3.12.1",
+    "nodemon": "^1.14.8",
+    "nyc": "^15.1.0"
   },
   "dependencies": {
+    "bip32": "^2.0.3",
+    "bip39": "git+https://github.com/bitcoinjs/bip39.git",
+    "bitcoin-merkle-proof": "^0.1.0",
     "bloom-filter": "^0.2.0",
-    "exp-net": "0.0.1"
+    "bs58": "^4.0.1",
+    "bs58check": "^2.1.1",
+    "clipboardy": "^2.3.0",
+    "debug": "^4.1.1",
+    "ecdsa": "^0.7.0",
+    "exp-net": "0.0.1",
+    "level": "^6.0.0",
+    "meow": "^6.1.0",
+    "multicast-dns": "^7.0.0",
+    "ripemd160": "^2.0.1",
+    "secp256k1": "^4.0.2"
   }
 }
