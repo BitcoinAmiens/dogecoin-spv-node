@@ -3,8 +3,7 @@ const binet = require('exp-net')
 const CompactSize = require('../utils/compactSize')
 const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
 
-const NODE_IP = '163.172.182.246'
-const NODE_PORT = 44556
+const NODE_PORT = 0
 
 function getVersion (ip, port) {
   let version = {

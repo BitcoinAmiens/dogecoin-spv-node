@@ -2,7 +2,7 @@ const constants = require('./constants').constants
 const networks = require('./network')
 const path = require('path')
 
-function getSettings (network) {
+function getSettings (network, dev) {
   let settings
 
   switch (network) {
@@ -16,8 +16,12 @@ function getSettings (network) {
       // should be mainnet but now throw error
       throw new Error('This a beta version. Mainnet not supported.')
   }
-
-  settings.DATA_FOLDER = path.join(__dirname, '..', 'data', settings.DATA_SUBFOLDER)
+  
+  if (dev) {
+    settings.DATA_FOLDER = path.join(__dirname, '..', 'data', settings.DATA_SUBFOLDER)
+  } else {
+    settings.DATA_FOLDER = path.join(process.env.HOME, '.dogecoin-spv', settings.DATA_SUBFOLDER)
+  }
   
   return settings
 }

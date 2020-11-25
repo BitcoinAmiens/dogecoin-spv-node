@@ -1,8 +1,8 @@
 build:
-	docker build -t dogecoind provision/dogecoind/
+	docker build --network=host -t dogecoind provision/dogecoind/
 
 regtest:
-	docker run -p 18444:18444 --name dogecoind_regtest dogecoind
+	docker run --network=host -p 18444:18444 --name dogecoind_regtest dogecoind
 	
 restart:
 	docker start dogecoind_regtest

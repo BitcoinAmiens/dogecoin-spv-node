@@ -1,8 +1,15 @@
 {
-  "name": "spv-node",
-  "version": "0.0.0",
+  "name": "dogecoin-spv",
+  "version": "0.1.0",
   "description": "Dogecoin SPV wallet (beta)",
-  "main": "./bin/main.js",
+  "keywords": [
+    "dogecoin",
+    "spv",
+    "spvnode"
+  ],
+  "author": "Lola Rigaut-Luczak <me@laflemme.lol>",
+  "license": "WTFPL",
+  "main": "./src/bin/main.js",
   "scripts": {
     "start": "DEBUG=* node src/main.js",
     "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon src/main.js",
@@ -21,16 +28,14 @@
   "ava": {
     "verbose": true,
     "files": [
-      "test/*.test.js"
+      "test/unit/*.test.js"
     ]
   },
-  "keywords": [
-    "dogecoin",
-    "spv",
-    "spvnode"
+  "files": [
+    "src/*",
+    "README.md",
+    "package-lock.json"
   ],
-  "author": "",
-  "license": "WTFPL",
   "devDependencies": {
     "ava": "^3.12.1",
     "nodemon": "^1.14.8",

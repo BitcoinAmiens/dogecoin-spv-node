@@ -52,7 +52,7 @@ class Peer extends EventEmitter {
   connect () {
     return new Promise ((resolve, reject) => {
       let something = this.socket.connect(this.port, this.ip, (res) => {
-        debug('Connecting to', this.ip)
+        debug(`Connecting to ${this.ip}:${this.port}`)
         let versionObj = version.getVersion(this.ip, this.port)
         let message = version.encodeVersionMessage(versionObj)
         const versionPacket = packet.preparePacket('version', message, this.settings.MAGIC_BYTES)
