@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const meow = require('meow')
-const app = require('../app')
-const networks = require('../network')
+const app = require('../src/app')
+const networks = require('../src/network')
 
 const cli = meow(`
     !!! Important !!!

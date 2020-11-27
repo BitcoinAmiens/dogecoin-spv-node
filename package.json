@@ -9,7 +9,7 @@
   ],
   "author": "Lola Rigaut-Luczak <me@laflemme.lol>",
   "license": "WTFPL",
-  "main": "./src/bin/main.js",
+  "main": "./bin/main.js",
   "scripts": {
     "start": "DEBUG=* node src/main.js",
     "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon src/main.js",
@@ -23,7 +23,7 @@
     ]
   },
   "bin": {
-    "dogecoin-spv": "./src/bin/main.js"
+    "dogecoin-spv": "./bin/main.js"
   },
   "ava": {
     "verbose": true,
@@ -33,6 +33,7 @@
   },
   "files": [
     "src/*",
+    "bin/*",
     "README.md",
     "package-lock.json"
   ],
