@@ -14,8 +14,8 @@ const constants = {
     WALLET: {
       wif: 0xEF,
       bip32: {
-          public: 0x043587CF,
-          private: 0x04358394,
+        public: 0x043587CF,
+        private: 0x04358394
       }
     }
   },
@@ -32,8 +32,8 @@ const constants = {
     WALLET: {
       wif: 0xF1,
       bip32: {
-          public: 0x043587CF,
-          private: 0x04358394,
+        public: 0x043587CF,
+        private: 0x04358394
       }
     }
   },
@@ -50,8 +50,8 @@ const constants = {
     WALLET: {
       wif: 0x9E,
       bip32: {
-          public: 0x02FACAFD,
-          private: 0x02FAC398,
+        public: 0x02FACAFD,
+        private: 0x02FAC398
       }
     }
   }

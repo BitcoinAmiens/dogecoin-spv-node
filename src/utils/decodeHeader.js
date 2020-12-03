@@ -1,14 +1,11 @@
 const doubleHash = require('./doubleHash')
 
-function decodeHeader(payload) {
+function decodeHeader (payload) {
   let offset = 0
-  let header = {}
+  const header = {}
 
   header.version = payload.readInt32LE(offset)
   offset += 4
-
-  var previousHash = payload.slice(offset, offset + 32)
-
 
   header.previousHash = payload.slice(offset, offset + 32).toString('hex')
   offset += 32
@@ -30,7 +27,6 @@ function decodeHeader(payload) {
 
   header.nonce = payload.readUInt32LE(offset)
   offset += 4
-
 
   header.hash = doubleHash(payload.slice(offset - 80, offset)).toString('hex')
 

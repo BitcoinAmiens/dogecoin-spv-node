@@ -6,8 +6,8 @@ class CompactSize {
     this.offset = offset
   }
 
-  static fromBuffer(data, offset) {
-    var firstByte = data.slice(offset, offset + 1)
+  static fromBuffer (data, offset) {
+    const firstByte = data.slice(offset, offset + 1)
 
     if (firstByte.size < 1) {
       throw new Error('Cannot read first byte because too small')
@@ -30,7 +30,6 @@ class CompactSize {
         break
       default:
         this.size = firstByte.readUInt8(0)
-
     }
 
     this.offset = this.offset - offset
@@ -39,8 +38,8 @@ class CompactSize {
   }
 
   static fromSize (size) {
-    var buffer
-    var sizeByte
+    let buffer
+    let sizeByte
 
     if (size <= 252) {
       buffer = Buffer.alloc(1)

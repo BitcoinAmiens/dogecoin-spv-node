@@ -1,4 +1,4 @@
-const {write64, readI64, readU64} = require('../utils/write64')
+const { write64, readI64, readU64 } = require('../utils/write64')
 const binet = require('exp-net')
 const CompactSize = require('../utils/compactSize')
 const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
@@ -6,11 +6,11 @@ const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
 const NODE_PORT = 0
 
 function getVersion (ip, port) {
-  let version = {
+  const version = {
     version: PROTOCOL_VERSION,
     services: 4,
     time: Date.now(),
-    remote : {
+    remote: {
       services: 1,
       host: ip,
       port: port
@@ -25,12 +25,12 @@ function getVersion (ip, port) {
     height: 0,
     relay: false
   }
-  
+
   return version
 }
 
 function encodeVersionMessage (payload) {
-  const buffer = new Buffer.alloc(86)
+  const buffer = Buffer.alloc(86)
   let offset = 0
 
   offset = buffer.writeInt32LE(payload.version, offset, true)
@@ -40,8 +40,8 @@ function encodeVersionMessage (payload) {
   offset += 10
   buffer[offset++] = 0xff
   buffer[offset++] = 0xff
-  var parts = payload.remote.host.split('.')
-  for (var ch of parts) {
+  let parts = payload.remote.host.split('.')
+  for (let ch of parts) {
     ch = parseInt(ch, 10)
     offset = buffer.writeUInt8(ch, offset)
   }
@@ -51,7 +51,7 @@ function encodeVersionMessage (payload) {
   buffer[offset++] = 0xff
   buffer[offset++] = 0xff
   parts = payload.local.host.split('.')
-  for (ch of parts) {
+  for (let ch of parts) {
     ch = parseInt(ch, 10)
     offset = buffer.writeUInt8(ch, offset)
   }
@@ -65,7 +65,7 @@ function encodeVersionMessage (payload) {
 }
 
 function decodeVersionMessage (data) {
-  var version = {}
+  const version = {}
   let offset = 0
 
   version.version = data.readUInt32LE(offset)
@@ -76,7 +76,7 @@ function decodeVersionMessage (data) {
   // The last 4 bytes are not used
   offset += 8
 
-  var timestamp = readI64(data, offset)
+  const timestamp = readI64(data, offset)
 
   version.timestamp = new Date(timestamp)
 
@@ -88,7 +88,7 @@ function decodeVersionMessage (data) {
   // The last 4 bytes are not used
   offset += 8
 
-  var host = data.slice(offset, offset + 16)
+  let host = data.slice(offset, offset + 16)
   version.local.host = binet.toString(host)
   offset += 16
 
@@ -101,23 +101,23 @@ function decodeVersionMessage (data) {
   // The last 4 bytes are not used
   offset += 8
 
-  var host = data.slice(offset, offset + 16)
+  host = data.slice(offset, offset + 16)
   version.remote.host = binet.toString(host)
   offset += 16
 
   version.remote.port = data.readUInt16BE(offset)
   offset += 2
 
-  var nonce = readU64(data, offset)
+  const nonce = readU64(data, offset)
   version.nonce = nonce
   offset += 8
 
-  var compactSize = CompactSize.fromBuffer(data, offset)
+  const compactSize = CompactSize.fromBuffer(data, offset)
 
   offset += compactSize.offset
-  var userAgentSize = compactSize.size
+  const userAgentSize = compactSize.size
 
-  var userAgent = data.slice(offset, offset + userAgentSize)
+  const userAgent = data.slice(offset, offset + userAgentSize)
 
   version.agent = userAgent.toString()
   offset += userAgentSize

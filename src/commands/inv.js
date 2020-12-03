@@ -1,23 +1,23 @@
 const CompactSize = require('../utils/compactSize')
 
 function decodeInvMessage (data) {
-  var invMessage = {}
+  const invMessage = {}
 
-  var compactSize = CompactSize.fromBuffer(data, 0)
+  const compactSize = CompactSize.fromBuffer(data, 0)
 
-  var count = compactSize.size
-  var offset = compactSize.offset
+  const count = compactSize.size
+  let offset = compactSize.offset
 
-  var inventories = []
-  for (var i = 0; i < count; i++) {
-    var type = data.slice(offset, offset + 4)
+  const inventories = []
+  for (let i = 0; i < count; i++) {
+    const type = data.slice(offset, offset + 4)
     offset += 4
-    var inventory = {}
+
+    const inventory = {}
 
     // Get inventory type (https://en.bitcoin.it/wiki/Protocol_documentation#Inventory_Vectors)
     switch (type.toString('hex')) {
       case '00000000':
-        console.log('ERROR')
         break
       case '01000000':
         // console.log('MSG_TX')
@@ -36,10 +36,10 @@ function decodeInvMessage (data) {
         inventory.type = 'MSG_CMPCT_BLOCK'
         break
       default:
-        console.log('Error : Unknown type')
+        return
     }
 
-    var hashBuffer = data.slice(offset, offset + 32)
+    const hashBuffer = data.slice(offset, offset + 32)
 
     inventory.hash = hashBuffer.toString('hex')
     offset += 32
@@ -53,19 +53,19 @@ function decodeInvMessage (data) {
   return invMessage
 }
 
-function encodeInvMessage (data, msg_type) {
-  var compactSizeBuffer = CompactSize.fromSize(data.count)
-  const buffer = new Buffer.alloc(36 * data.count + compactSizeBuffer.length)
+function encodeInvMessage (data, msgType) {
+  const compactSizeBuffer = CompactSize.fromSize(data.count)
+  const buffer = Buffer.alloc(36 * data.count + compactSizeBuffer.length)
   let offset = 0
 
   compactSizeBuffer.copy(buffer, offset)
   offset += compactSizeBuffer.length
 
   // Now we want block
-  for (var i = 0; i < data.count; i++) {
+  for (let i = 0; i < data.count; i++) {
     // We want MSG_FILTERED_BLOCK so the code is 3
     // If it is 2 we want MSG_BLOCK because we had a new block
-    buffer.writeUInt32LE(msg_type, offset)
+    buffer.writeUInt32LE(msgType, offset)
     offset += 4
 
     const blockHashBuffer = Buffer.from(data.inventory[i].hash, 'hex')

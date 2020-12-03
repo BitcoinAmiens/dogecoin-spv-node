@@ -6,7 +6,9 @@ const SATOSHIS = require('../../constants').SATOSHIS
 class MainScreen extends Screen {
   constructor (args) {
     super()
-        
+
+    debug('Initiating main screen')
+
     if (typeof args.store !== 'object' ||
       typeof args.displayNewAddressScreen !== 'function' ||
       typeof args.displaySendDogeScreen !== 'function' ||
@@ -14,45 +16,43 @@ class MainScreen extends Screen {
     ) {
       throw new Error("You need to define a 'store' object.")
     }
-    
+
     this.store = args.store
     this.displayNewAddressScreen = args.displayNewAddressScreen
     this.displaySendDogeScreen = args.displaySendDogeScreen
     this.stop = args.stop
 
-    this.store.on('changed', this._handleChangedEvent)  
+    this.store.on('changed', this._handleChangedEvent.bind(this))
   }
-  
-  _handleChangedEvent = () => {
+
+  _handleChangedEvent () {
     this.update()
   }
-  
+
   _unlock () {
     this.lock = false
     this.emit('unlock')
   }
-  
+
   keyPressed (key) {
-    switch(key) {
+    switch (key) {
       case KEYS.NUM_KEY_1:
-        this.store.removeListener('changed',this._handleChangedEvent)
+        this.store.removeListener('changed', this._handleChangedEvent)
         this.displayNewAddressScreen()
         break
       case KEYS.NUM_KEY_2:
-      this.store.removeListener('changed',this._handleChangedEvent)
+        this.store.removeListener('changed', this._handleChangedEvent)
         this.displaySendDogeScreen()
         break
       case KEYS.NUM_KEY_3:
         this.stop()
         break
-      default:
-        return
     }
   }
-  
-  format (height=0, bestHeight=0, hash=null, numberOfPeers=0, tips=new Map(), merkleHeight=0, balance=0) {
+
+  format (height = 0, bestHeight = 0, hash = null, numberOfPeers = 0, tips = new Map(), merkleHeight = 0, balance = 0) {
     const report = process.resourceUsage()
-    const rss = Math.floor(process.memoryUsage().rss/(1000*1000))
+    const rss = Math.floor(process.memoryUsage().rss / (1000 * 1000))
 
     // TODO: seperate in sublayout
 
@@ -72,7 +72,7 @@ class MainScreen extends Screen {
 
 ================ Wallet =============================
 
-    Balance: ${balance/SATOSHIS} Ð
+    Balance: ${balance / SATOSHIS} Ð
 
 ================ Menu ===============================
 
@@ -84,16 +84,15 @@ class MainScreen extends Screen {
 
     return layout
   }
-  
+
   // Update interface
   update () {
     if (this.lock) { return }
-    //if (this.window !== WINDOWS.INDEX) { return }
 
     this.lock = true
 
     //  TODO: properly get position of each value and only update it instead of the all screen
-    process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines-1), () => {
+    process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines - 1), () => {
       process.stdout.write(this.format(
         this.store.height,
         this.store.bestHeight,
@@ -108,7 +107,6 @@ class MainScreen extends Screen {
       this._unlock()
     })
   }
-  
 }
 
 module.exports = MainScreen

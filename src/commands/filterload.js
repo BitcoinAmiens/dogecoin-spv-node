@@ -1,14 +1,14 @@
-var CompactSize = require('../utils/compactSize')
+const CompactSize = require('../utils/compactSize')
 
 function encodeFilterLoad (filter) {
-  var compactSizeBuffer = CompactSize.fromSize(filter.vData.length)
-  var buffer = Buffer.alloc(9 + compactSizeBuffer.length + filter.vData.length)
-  var offset = 0
+  const compactSizeBuffer = CompactSize.fromSize(filter.vData.length)
+  const buffer = Buffer.alloc(9 + compactSizeBuffer.length + filter.vData.length)
+  let offset = 0
 
   compactSizeBuffer.copy(buffer, offset)
   offset += compactSizeBuffer.length
 
-  for (var i = 0; i < filter.vData.length; i++) {
+  for (let i = 0; i < filter.vData.length; i++) {
     buffer.writeUInt8(filter.vData[i], offset)
     offset += 1
   }
@@ -18,7 +18,6 @@ function encodeFilterLoad (filter) {
 
   buffer.writeInt32LE(filter.nTweak, offset)
   offset += 4
-
 
   buffer.writeUInt8(filter.nFlags, offset)
 

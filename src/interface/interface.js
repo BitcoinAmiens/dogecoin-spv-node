@@ -13,12 +13,10 @@ const {
 
 // Interface
 class Interface extends EventEmitter {
-
-  screen = null
-  isShuttingDown = false
-
   constructor (args) {
     super()
+
+    debug('Initiating interface')
 
     // Keep this and fail early
     if (
@@ -32,15 +30,15 @@ class Interface extends EventEmitter {
     this.getAddress = args.getAddress
     this.sendTransaction = args.sendTransaction
     this.store = args.store
-    
+
     // dummy screen to avoid trouble
     this.screen = new DummyScreen()
-    
+    this.isShuttingDown = false
+
     this._init()
 
     // Catch keys pressed
     process.stdin.on('data', (key) => {
-      
       if (this.screen.keyPressed(key)) {
         switch (key) {
           case KEYS.CTRL_C:
@@ -49,7 +47,7 @@ class Interface extends EventEmitter {
           case KEYS.RETURN:
             this.displayMainScreen()
             break
-        }        
+        }
       }
     })
   }
@@ -70,12 +68,12 @@ class Interface extends EventEmitter {
     process.stdin.setEncoding('utf-8')
   }
 
-  stop = () => {
+  stop () {
     // Need to have screen unlock (so no update)
     this.isShuttingDown = true
 
     if (this.screen.lock) {
-      this.screen.on('unlock', this._quit)
+      this.screen.on('unlock', this._quit.bind(this))
     } else {
       this.screen.lock = true
       this._quit()
@@ -83,23 +81,23 @@ class Interface extends EventEmitter {
   }
 
   _quit () {
-    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines - 1), () => {
       process.stdout.write(`${terminalStyle.CLEAR}${terminalStyle.SHOW_CURSOR}`)
       // clean screen then quit
       this.emit('quit')
     })
   }
-  
+
   showMnemonicScreen (mnemonic) {
     this.displayMnemonicScreen(mnemonic)
   }
-  
+
   showMainScreen () {
     this.displayMainScreen()
   }
-  
-  displayMnemonicScreen = (mnemonic) => {
-    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
+
+  displayMnemonicScreen (mnemonic) {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines - 1), () => {
       process.stdout.write(terminalStyle.CLEAR)
 
       // Update screen
@@ -107,32 +105,32 @@ class Interface extends EventEmitter {
     })
   }
 
-  displaySendDogeScreen = () => {
-    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
+  displaySendDogeScreen () {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines - 1), () => {
       process.stdout.write(terminalStyle.CLEAR)
 
       // Update screen
-      this.screen = new SendDogeScreen({sendTransaction: this.sendTransaction, store: this.store})
+      this.screen = new SendDogeScreen({ sendTransaction: this.sendTransaction, store: this.store })
     })
   }
 
-  displayNewAddressScreen = () => {
-    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
+  displayNewAddressScreen () {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines - 1), () => {
       process.stdout.write(terminalStyle.CLEAR)
-      
+
       // Update screen
-      this.screen = new NewAddressScreen({getAddress: this.getAddress})
+      this.screen = new NewAddressScreen({ getAddress: this.getAddress })
     })
   }
 
-  displayMainScreen = () => {
-    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines-1), () => {
+  displayMainScreen () {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines - 1), () => {
       process.stdout.write(terminalStyle.CLEAR)
       this.screen = new MainScreen({
         store: this.store,
         displayNewAddressScreen: this.displayNewAddressScreen,
         displaySendDogeScreen: this.displaySendDogeScreen,
-        stop: this.stop
+        stop: this.stop.bind(this)
       })
       // TODO: This ugly
       process.stdout.write(this.screen.format(
@@ -146,7 +144,6 @@ class Interface extends EventEmitter {
       ))
     })
   }
-
 }
 
 module.exports = Interface

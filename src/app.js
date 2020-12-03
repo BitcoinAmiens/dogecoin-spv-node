@@ -14,54 +14,33 @@ const process = require('process')
 
 // TODO: app args should be the app settings
 async function app (args) {
-  
   if (typeof args.network !== 'string') {
     throw new Error('`network` argument is required.')
   }
-  
+
   // Only support 'linux' for now
   if (process.platform !== 'linux') {
     throw new OSNotSupported(process.platform)
   }
-  
-  var settings = getSettings(args.network, args.dev)
+
+  const settings = getSettings(args.network, args.dev)
   // Redirect output stream to log file
   setupLog()
 
-  //////////////////////////////////
-  //
   // Create data folders for data
-  //
-  //////////////////////////////////
   if (!fs.existsSync(settings.DATA_FOLDER)) {
-    fs.mkdirSync(settings.DATA_FOLDER, {recursive: true})
+    fs.mkdirSync(settings.DATA_FOLDER, { recursive: true })
     fs.mkdirSync(path.join(settings.DATA_FOLDER, 'spvnode'))
     fs.mkdirSync(path.join(settings.DATA_FOLDER, 'wallet'))
   }
-  
+
   const SEED_FILE = path.join(settings.DATA_FOLDER, 'seed.json')
 
-
-  //////////////////////////////////
-  //
   // Create Wallet
-  //
-  //////////////////////////////////
   const wallet = new Wallet(settings)
 
-  //////////////////////////////////
-  //
   // Interface Store (keep track of all the data)
-  //
-  //////////////////////////////////
   const store = new Store()
-
-
-  //////////////////////////////////
-  //
-  // Interface <--> Wallet functions
-  //
-  //////////////////////////////////
 
   // get balance
   wallet.getBalance()
@@ -78,68 +57,47 @@ async function app (args) {
         spvnode.sendRawTransaction(rawTransaction)
         debug('SENT !')
       })
-    }
+  }
 
   // Will be needed in the interface
   const getAddress = () => { return wallet.getAddress() }
-  
-  // Generate mnmonic in case we don't have one yet
-  const generateMnemonic = () => { return }
 
-  //////////////////////////////////
-  //
   // Create Interface
-  //
-  //////////////////////////////////
-  const interface = new Interface({
+  const ui = new Interface({
     store,
     getAddress,
     sendTransaction
   })
-  
-  // Going to glitch ?
-  
-  ///////////////////////////////////
-  //
-  //   Do we have seed already ?
-  //
-  //////////////////////////////////
+
+  // Do we have seed already ?
   try {
     fs.accessSync(SEED_FILE)
   } catch (err) {
-    const mnemonic = wallet.generateMnemonic() 
+    const mnemonic = wallet.generateMnemonic()
     wallet.createSeedFile(mnemonic)
-    interface.showMnemonicScreen(mnemonic)
+    ui.showMnemonicScreen(mnemonic)
     // TODO: It has to be a better way
-    while (!interface.screen.continue) {
-      await new Promise(r => setTimeout(r, 2000))
+    while (!ui.screen.continue) {
+      await new Promise((resolve, reject) => setTimeout(resolve, 2000))
     }
   }
-  
+
   // We made sure we have a seed file
   wallet.init()
-  
   // show main screen
-  interface.showMainScreen()
-
-  //////////////////////////////////
-  //
-  // Event listeners !!!!!!!!!!
-  //
-  //////////////////////////////////
+  ui.showMainScreen()
 
   // Because of how weird javascript works we can have this before
   // instanciating spvnode
-  interface.on('quit', async function () {
-    debug("'quit' event received from the interface")
+  ui.on('quit', async function () {
+    debug("'quit' event received from the ui")
 
-    if (spvnode.isShuttingDown()) {return}
+    if (spvnode.isShuttingDown()) { return }
 
     await spvnode.shutdown()
 
     process.exit()
   })
-
 
   wallet.on('balance', function () {
     debug('BALANCE UPDATED!')
@@ -149,25 +107,14 @@ async function app (args) {
       })
   })
 
-  let pubkeyHashes = []
+  const pubkeyHashes = []
   wallet.pubkeyHashes.forEach(function (value, key) {
     // TODO: remove change addresses. This is not needed in the filter ?
     pubkeyHashes.push(key.toString('hex'))
   })
 
-  //////////////////////////////////
-  //
   // Create SPV node
-  //
-  //////////////////////////////////
-  var spvnode = new SPVNode(pubkeyHashes, settings)
-
-
-  //////////////////////////////////
-  //
-  // More listeners !!!!!!
-  //
-  //////////////////////////////////
+  const spvnode = new SPVNode(pubkeyHashes, settings)
 
   spvnode.on('tx', function (tx) {
     // Register tx to wallet! Maybe it ours... maybe not
@@ -188,13 +135,7 @@ async function app (args) {
     store.setRejectMessage(rejectMessage)
   })
 
-  //////////////////////////////////
-  //
-  // Stopping this damn app
-  //
-  //////////////////////////////////
-
-  //catches ctrl+c event
+  // catches ctrl+c event
   process.on('SIGINT', async function () {
     debug('SIGINT received interrupting process...')
 
@@ -209,23 +150,17 @@ async function app (args) {
     process.exit()
   })
 
-  //catches SIGTERM events
+  // catches SIGTERM events
   process.on('SIGTERM', async function () {
     // Close wallet and stop spv node
     debug('SIGTERM received terminating process...')
 
-    if (spvnode.isShuttingDown()) {return}
+    if (spvnode.isShuttingDown()) { return }
 
     await spvnode.shutdown()
 
     process.exit()
   })
-
-  //////////////////////////////////
-  //
-  // Starting this damn app
-  //
-  //////////////////////////////////
 
   // Add regtest peer
   if (args.network === networks.REGTEST) {
@@ -236,7 +171,6 @@ async function app (args) {
 
   // start synchronizing
   await spvnode.synchronize()
-
 }
 
 module.exports = app

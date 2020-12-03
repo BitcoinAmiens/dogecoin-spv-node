@@ -1,3 +1,5 @@
+// TODO: Nodejs now support 64 bytes operation. Get rid of it
+// see https://nodejs.org/api/buffer.html#buffer_buf_readbigint64be_offset
 function write64 (dst, num, off, be) {
   let neg = false
 
@@ -43,4 +45,4 @@ function readU64 (data, off) {
   return hi * 0x100000000 + lo
 }
 
-module.exports = {write64, readI64, readU64}
+module.exports = { write64, readI64, readU64 }
