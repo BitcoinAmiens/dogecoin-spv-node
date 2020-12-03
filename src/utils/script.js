@@ -1,27 +1,21 @@
 
-
 function getAddressFromScript (script) {
   // We should have a switch here
-  let firstByte = script.slice(0, 1).toString('hex')
-  let address
+  const firstByte = script.slice(0, 1).toString('hex')
 
   switch (firstByte) {
     case '21':
-      let pubkey = script.slice(1, 34)
-      return pubkey
+      // public key
+      return script.slice(1, 34)
     case '76':
-      let pubkeyHash = script.slice(3, 23)
-      return pubkeyHash
-
-    // P2SH !!!newTx.txOuts
+    // public key hash
+      return script.slice(3, 23)
     case 'a9':
-      let redeemScriptHash = script.slice(2, 22)
-      return redeemScriptHash
-
+      // redem script hash
+      return script.slice(2, 22)
     default:
-      return new Buffer()
+      return Buffer.alloc()
   }
-
 }
 
 module.exports = { getAddressFromScript }

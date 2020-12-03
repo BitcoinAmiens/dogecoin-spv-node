@@ -1,6 +1,6 @@
 const bip39 = require('bip39')
 const bip32 = require('bip32')
-const {prepareTransactionToSign, encodeRawTransaction} = require('./commands/tx')
+const { prepareTransactionToSign, encodeRawTransaction } = require('./commands/tx')
 const bs58check = require('bs58check')
 const doubleHash = require('./utils/doubleHash')
 const { getAddressFromScript } = require('./utils/script')
@@ -15,10 +15,10 @@ const debug = require('debug')('wallet')
 const fs = require('fs')
 const path = require('path')
 const EventEmitter = require('events')
-var level = require('level')
+const level = require('level')
 
-//const Transport = require('@ledgerhq/hw-transport-node-hid').default
-//const AppBtc = require('@ledgerhq/hw-app-btc').default
+// const Transport = require('@ledgerhq/hw-transport-node-hid').default
+// const AppBtc = require('@ledgerhq/hw-app-btc').default
 const pubkeyToAddress = require('./utils/pubkeyToAddress')
 
 // HD wallet for dogecoin
@@ -29,8 +29,8 @@ class Wallet extends EventEmitter {
     this.settings = settings
     this.pubkeys = new Map()
     this.pubkeyHashes = new Map()
-    this.unspentOutputs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'unspent'), {valueEncoding: 'json'})
-    this.txs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'tx'), {valueEncoding: 'json'})
+    this.unspentOutputs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'unspent'), { valueEncoding: 'json' })
+    this.txs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'tx'), { valueEncoding: 'json' })
 
     this.seed_file = path.join(this.settings.DATA_FOLDER, 'seed.json')
 
@@ -42,7 +42,7 @@ class Wallet extends EventEmitter {
       this._seed = null
     }
   }
-  
+
   init () {
     // Need to generate the 20 addresses here
     for (let i = 0; i < 20; i++) {
@@ -59,12 +59,12 @@ class Wallet extends EventEmitter {
 
   createSeedFile (mnemonic) {
     this._seed = bip39.mnemonicToSeedSync(mnemonic)
-    fs.writeFileSync(this.seed_file, JSON.stringify({seed: this._seed.toString('hex')}), { flag: 'w' })
+    fs.writeFileSync(this.seed_file, JSON.stringify({ seed: this._seed.toString('hex') }), { flag: 'w' })
   }
 
   _readSeedFile () {
-    var data = fs.readFileSync(this.seed_file)
-    var jsonData = JSON.parse(data)
+    const data = fs.readFileSync(this.seed_file)
+    const jsonData = JSON.parse(data)
     return Buffer.from(jsonData.seed, 'hex')
   }
 
@@ -90,9 +90,9 @@ class Wallet extends EventEmitter {
   }
 
   _updatePubkeysState (index, publicKey, changeAddress = 0) {
-    this.pubkeys.set(publicKey.toString('hex'), {index, changeAddress, used: false})
+    this.pubkeys.set(publicKey.toString('hex'), { index, changeAddress, used: false })
     const pubKeyHash = this._pubkeyToPubkeyHash(publicKey)
-    this.pubkeyHashes.set(pubKeyHash.toString('hex'), {publicKey, index, changeAddress})
+    this.pubkeyHashes.set(pubKeyHash.toString('hex'), { publicKey, index, changeAddress })
   }
 
   _getNextIndex (changeAddress = false) {
@@ -120,7 +120,7 @@ class Wallet extends EventEmitter {
     const iterator = this.pubkeys[Symbol.iterator]()
 
     let pk
-    for (let pubkey of iterator) {
+    for (const pubkey of iterator) {
       if (!pubkey[1].used) {
         pk = pubkey[0]
       }
@@ -135,10 +135,10 @@ class Wallet extends EventEmitter {
     this.txs.put(tx.id, tx, (err) => {
       if (err) { throw err }
     })
-        
+
     // Look for input which use our unspent output
     tx.txIns.forEach((txIn) => {
-      let previousOutput = txIn.previousOutput.hash + txIn.previousOutput.index
+      const previousOutput = txIn.previousOutput.hash + txIn.previousOutput.index
       // If coinbase txIn we don't care
       if (txIn.previousOutput.hash === '0000000000000000000000000000000000000000000000000000000000000000') {
         return
@@ -149,7 +149,7 @@ class Wallet extends EventEmitter {
         if (err && err.type !== 'NotFoundError') throw err
         if (err && err.type === 'NotFoundError') return
 
-        debug("We have spent this")
+        debug('We have spent this')
         debug(tx.txOuts)
 
         if (value) {
@@ -164,72 +164,67 @@ class Wallet extends EventEmitter {
       })
     })
 
+    // And we actually need txOuts records not txs stupid (:heart:)
+    // Do we actually want to do that bit here ? Might be interesting to have it in the main app
+    // because in the future we want to decouple spvnode and wallet.
+    tx.txOuts.forEach((txOut, index) => {
+      // We should have a switch here
+      const firstByte = txOut.pkScript.slice(0, 1).toString('hex')
+      let address
 
-  // And we actually need txOuts records not txs stupid (:heart:)
-  // Do we actually want to do that bit here ? Might be interesting to have it in the main app
-  // because in the future we want to decouple spvnode and wallet.
-  tx.txOuts.forEach((txOut, index) => {
+      switch (firstByte) {
+        case '21':
+          // public key !
+          address = txOut.pkScript.slice(1, 34).toString('hex')
+          break
+        case '76':
+        // public key hash !
+          address = txOut.pkScript.slice(3, 23).toString('hex')
+          break
+          // P2SH !!!newTx.txOuts
+        case 'a9':
+          // redeem script hash !
+          address = txOut.pkScript.slice(2, 22).toString('hex')
+          break
+        default:
+          debug('unknown script')
+      }
 
-    // We should have a switch here
-    let firstByte = txOut.pkScript.slice(0, 1).toString('hex')
-    let address
+      debug(this.pubkeyHashes.has(address))
+      debug(address)
 
-    switch (firstByte) {
-      case '21':
-        let pubkey = txOut.pkScript.slice(1, 34)
-        address = pubkey.toString('hex')
-        break
+      if (!this.pubkeyHashes.has(address)) {
+        // Not in our wallet (false positive)
+        return
+      }
 
-      case '76':
-        let pubkeyHash = txOut.pkScript.slice(3, 23)
-        address = pubkeyHash.toString('hex')
-        break
+      const indexBuffer = Buffer.allocUnsafe(4)
+      indexBuffer.writeInt32LE(index, 0)
 
-      // P2SH !!!newTx.txOuts
-      case 'a9':
-        let redeemScriptHash = txOut.pkScript.slice(2, 22)
-        address = redeemScriptHash.toString('hex')
-        break
+      const output = tx.id + indexBuffer.toString('hex')
 
-      default:
-        debug('unknown script')
-    }
+      debug(`New tx : ${output}`)
 
-    debug(this.pubkeyHashes.has(address))
-    debug(address)
-
-    if (!this.pubkeyHashes.has(address)) {
-      // Not in our wallet (false positive)
-      return
-    }
-
-    let indexBuffer = Buffer.allocUnsafe(4)
-    indexBuffer.writeInt32LE(index, 0)
-
-    let output = tx.id + indexBuffer.toString('hex')
-
-    debug(`New tx : ${output}`)
-
-    // Save full tx in 'txs'
-    this.txs.put(output, tx, (err) => {
-      if (err) throw err
-
-      // save only the unspent output in 'unspent'
-      this.unspentOutputs.put(output, {txid: tx.id, vout: tx.txOuts.indexOf(txOut), value: txOut.value}, (err) => {
+      // Save full tx in 'txs'
+      this.txs.put(output, tx, (err) => {
         if (err) throw err
 
-        this.emit('balance')
+        // save only the unspent output in 'unspent'
+        this.unspentOutputs.put(output, { txid: tx.id, vout: tx.txOuts.indexOf(txOut), value: txOut.value }, (err) => {
+          if (err) throw err
+
+          this.emit('balance')
+        })
       })
     })
-  })
   }
 
   generateNewAddress (changeAddress = false) {
     const index = this._getNextIndex(changeAddress)
-    const path = this.settings.PATH + (changeAddress ? '1':'0') + '/' + index
+    const path = this.settings.PATH + (changeAddress ? '1' : '0') + '/' + index
     const root = bip32.fromSeed(this._seed, this.settings.WALLET)
     const child = root.derivePath(path)
-    let address = pubkeyToAddress(child.publicKey, this.settings.NETWORK_BYTE)
+    const address = pubkeyToAddress(child.publicKey, this.settings.NETWORK_BYTE)
     this._updatePubkeysState(index, child.publicKey, changeAddress ? 1 : 0)
 
     return address
@@ -252,17 +247,17 @@ class Wallet extends EventEmitter {
 
   async send (amount, to) {
     let changeAddress
-    for (let [key, value] of this.pubkeys.entries()) {
+    for (const [key, value] of this.pubkeys.entries()) {
       if (value.changeAddress && !value.used) {
         changeAddress = pubkeyToAddress(Buffer.from(key, 'hex'), this.settings.NETWORK_BYTE)
         break
       }
     }
     if (!changeAddress) {
-      changeAddress = generateChangeAddress()
+      changeAddress = this.generateChangeAddress()
     }
-    
-    let transaction = {
+
+    const transaction = {
       version: 1,
       txInCount: 0,
       txIns: [],
@@ -274,24 +269,23 @@ class Wallet extends EventEmitter {
 
     let total = 0
 
-    let balance = await this.getBalance()
+    const balance = await this.getBalance()
 
     if (balance < amount) {
       debug('Not enought funds!')
       return
     }
 
-    let unspentOuputsIterator = this.unspentOutputs.iterator()
+    const unspentOuputsIterator = this.unspentOutputs.iterator()
     let stop = false
 
     while (total < amount && !stop) {
-
       // TODO: clean! Have a proper function for that
-      let value = await new Promise((resolve, reject) => {
+      const value = await new Promise((resolve, reject) => {
         unspentOuputsIterator.next((err, key, value) => {
           if (err) { reject(err) }
 
-          if (typeof value === "undefined" && typeof key === "undefined") {
+          if (typeof value === 'undefined' && typeof key === 'undefined') {
             // We are at the end so over
             stop = true
             resolve()
@@ -301,7 +295,7 @@ class Wallet extends EventEmitter {
           this.txs.get(value.txid)
             .then((data) => {
               transaction.txIns.push({
-                previousOutput: { hash: value.txid, index: value.vout},
+                previousOutput: { hash: value.txid, index: value.vout },
                 // Temporary just so we can sign it (https://bitcoin.stackexchange.com/questions/32628/redeeming-a-raw-transaction-step-by-step-example-required/32695#32695)
                 signature: Buffer.from(data.txOuts[value.vout].pkScript.data, 'hex'),
                 sequence: 4294967294
@@ -329,7 +323,7 @@ class Wallet extends EventEmitter {
 
     // This need to be improved !
     let test = bs58check.decode(to).slice(1)
-    let pkScript = Buffer.from('76a914'+ test.toString('hex') + '88ac', 'hex')
+    let pkScript = Buffer.from('76a914' + test.toString('hex') + '88ac', 'hex')
 
     transaction.txOuts[0] = {
       value: amount,
@@ -340,10 +334,10 @@ class Wallet extends EventEmitter {
     // TODO: Changed address should be pick from database.... and not hardcoded
     test = bs58check.decode(changeAddress).slice(1)
     debug(test.toString('hex'))
-    pkScript = Buffer.from('76a914'+ test.toString('hex') + '88ac', 'hex')
+    pkScript = Buffer.from('76a914' + test.toString('hex') + '88ac', 'hex')
 
     // TODO: fees for now make it 1 DOGE
-    let fee = 1*this.settings.SATOSHIS
+    const fee = 1 * this.settings.SATOSHIS
     if (total > amount) {
       transaction.txOuts[1] = {
         value: total - amount - fee,
@@ -354,14 +348,12 @@ class Wallet extends EventEmitter {
 
     transaction.txOutCount = transaction.txOuts.length
 
-    ////////////////////////////////////////////////////////////////
-
-    debug("Tx in counts : ",transaction.txInCount)
+    debug('Tx in counts : ', transaction.txInCount)
 
     for (let txInIndex = 0; txInIndex < transaction.txInCount; txInIndex++) {
-      const rawUnsignedTransaction =  prepareTransactionToSign(transaction, txInIndex)
+      const rawUnsignedTransaction = prepareTransactionToSign(transaction, txInIndex)
       const rawTransactionHash = doubleHash(rawUnsignedTransaction)
-      
+
       // Which key ? Fuck
       const address = getAddressFromScript(transaction.txIns[txInIndex].signature)
       let value
@@ -374,7 +366,7 @@ class Wallet extends EventEmitter {
         value = this.pubkeyHashes.get(address.toString('hex'))
       }
 
-      const key = this.getPrivateKey(value.index, value.changeAddress )
+      const key = this.getPrivateKey(value.index, value.changeAddress)
 
       let pubKeyHash = crypto.createHash('sha256').update(key.publicKey).digest()
       pubKeyHash = new RIPEMD160().update(pubKeyHash).digest()
@@ -383,19 +375,18 @@ class Wallet extends EventEmitter {
 
       const signatureDer = secp256k1.signatureExport(signature.signature)
 
-      let signatureCompactSize = CompactSize.fromSize(signatureDer.length+1)
-      let publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
+      const signatureCompactSize = CompactSize.fromSize(signatureDer.length + 1)
+      const publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
 
-      let scriptSig = signatureCompactSize.toString('hex') + signatureDer.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
+      const scriptSig = signatureCompactSize.toString('hex') + signatureDer.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
 
       transaction.txIns[txInIndex].signatureSize = CompactSize.fromSize(Buffer.from(scriptSig).length, 'hex')
       transaction.txIns[txInIndex].signature = Buffer.from(scriptSig, 'hex')
-
-      }
+    }
 
     delete transaction.hashCodeType
 
-    let rawTransaction = encodeRawTransaction(transaction)
+    const rawTransaction = encodeRawTransaction(transaction)
 
     return rawTransaction
   }
@@ -404,7 +395,8 @@ class Wallet extends EventEmitter {
 
   }
 
-  /*async connectToLedger () {
+  /*
+  async connectToLedger () {
     const transport = await Transport.create()
     this.app = new AppBtc(transport)
   }
@@ -429,7 +421,8 @@ class Wallet extends EventEmitter {
 
   splitTransaction (txHex) {
     return this.app.splitTransaction(txHex)
-  }*/
+  }
+  */
 }
 
 module.exports = Wallet

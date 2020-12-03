@@ -3,10 +3,10 @@ const { readU64 } = require('../utils/write64')
 const doubleHash = require('../utils/doubleHash')
 
 function decodeHeadersMessage (payload) {
-  var headers = {}
+  const headers = {}
   let offset = 0
 
-  var compactSize = CompactSize.fromBuffer(payload, offset)
+  let compactSize = CompactSize.fromBuffer(payload, offset)
 
   headers.count = compactSize.size
   offset = compactSize.offset
@@ -15,14 +15,11 @@ function decodeHeadersMessage (payload) {
 
   // console.log('Headers count : ' + headers.count + ', headers count bit : ' + payload.slice(0, 3).toString('hex'))
 
-  for (var i = 0; i < headers.count; i++) {
-    var header = {}
+  for (let i = 0; i < headers.count; i++) {
+    const header = {}
 
     header.version = payload.readInt32LE(offset)
     offset += 4
-
-    var previousHash = payload.slice(offset, offset + 32)
-
 
     header.previousHash = payload.slice(offset, offset + 32).toString('hex')
     offset += 32
@@ -43,7 +40,6 @@ function decodeHeadersMessage (payload) {
     header.nonce = payload.readUInt32LE(offset)
     offset += 4
 
-
     header.hash = doubleHash(payload.slice(offset - 80, offset)).toString('hex')
 
     // Should be always 0x00
@@ -58,11 +54,10 @@ function decodeHeadersMessage (payload) {
 
       delete header.transactionCount
 
-
       // It was not the transaction headers that we got
       offset -= 1
 
-      let parentBlock = {}
+      const parentBlock = {}
 
       parentBlock.version = payload.readInt32LE(offset)
       offset += 4
@@ -74,13 +69,13 @@ function decodeHeadersMessage (payload) {
 
       parentBlock.txIns = []
 
-      for (let j=0; j< parentBlock.txInCount; j++) {
-        let txIn = {}
+      for (let j = 0; j < parentBlock.txInCount; j++) {
+        const txIn = {}
 
         txIn.previousOutput = payload.slice(offset, offset + 36).toString('hex')
         offset += 36
 
-        let compactSize = CompactSize.fromBuffer(payload, offset)
+        compactSize = CompactSize.fromBuffer(payload, offset)
         offset += compactSize.offset
 
         txIn.scriptSize = compactSize.size
@@ -101,18 +96,14 @@ function decodeHeadersMessage (payload) {
 
       parentBlock.txOuts = []
 
-      for (let j=0; j< parentBlock.txOutCount; j++) {
-        let txOut = {}
+      for (let j = 0; j < parentBlock.txOutCount; j++) {
+        const txOut = {}
 
         txOut.value = readU64(payload, offset)
         offset += 8
 
-        try {
-          compactSize = CompactSize.fromBuffer(payload, offset)
-          offset += compactSize.offset
-        } catch (err) {
-          throw err
-        }
+        compactSize = CompactSize.fromBuffer(payload, offset)
+        offset += compactSize.offset
 
         txOut.pkScriptSize = compactSize.size
 
@@ -128,7 +119,7 @@ function decodeHeadersMessage (payload) {
       parentBlock.blockHash = payload.slice(offset, offset + 32).toString('hex')
       offset += 32
 
-      let coinbaseBranch = {}
+      const coinbaseBranch = {}
 
       compactSize = CompactSize.fromBuffer(payload, offset)
       offset += compactSize.offset
@@ -137,7 +128,7 @@ function decodeHeadersMessage (payload) {
 
       coinbaseBranch.branchHashes = []
 
-      for (let j=0; j < coinbaseBranch.branchLength; j++) {
+      for (let j = 0; j < coinbaseBranch.branchLength; j++) {
         coinbaseBranch.branchHashes.push(payload.slice(offset, offset + 32).toString('hex'))
         offset += 32
       }
@@ -147,7 +138,7 @@ function decodeHeadersMessage (payload) {
 
       parentBlock.coinbaseBranch = coinbaseBranch
 
-      blockchainBranch = {}
+      const blockchainBranch = {}
 
       compactSize = CompactSize.fromBuffer(payload, offset)
       offset += compactSize.offset
@@ -156,7 +147,7 @@ function decodeHeadersMessage (payload) {
 
       blockchainBranch.branchHashes = []
 
-      for (let j=0; j < blockchainBranch.branchLength; j++) {
+      for (let j = 0; j < blockchainBranch.branchLength; j++) {
         blockchainBranch.branchHashes.push(payload.slice(offset, offset + 32).toString('hex'))
         offset += 32
       }

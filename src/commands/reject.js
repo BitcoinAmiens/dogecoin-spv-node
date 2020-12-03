@@ -1,15 +1,15 @@
 const CompactSize = require('../utils/compactSize')
 
 function decodeRejectMessage (payload) {
-  var rejectMessage = {}
+  const rejectMessage = {}
   let offset = 0
 
-  var compactSize = CompactSize.fromBuffer(payload, offset)
+  let compactSize = CompactSize.fromBuffer(payload, offset)
 
   rejectMessage.messageLength = compactSize.size
   offset = compactSize.offset
 
-  var message = payload.slice(offset, offset + rejectMessage.messageLength)
+  const message = payload.slice(offset, offset + rejectMessage.messageLength)
 
   rejectMessage.message = message.toString()
   offset += rejectMessage.messageLength
@@ -22,7 +22,7 @@ function decodeRejectMessage (payload) {
   rejectMessage.reasonLength = compactSize.size
   offset += compactSize.offset
 
-  var reason = payload.slice(offset, offset + rejectMessage.reasonLength)
+  const reason = payload.slice(offset, offset + rejectMessage.reasonLength)
 
   rejectMessage.reason = reason.toString()
   offset += rejectMessage.reasonLength

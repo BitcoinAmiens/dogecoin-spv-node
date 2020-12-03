@@ -16,13 +16,13 @@ function getSettings (network, dev) {
       // should be mainnet but now throw error
       throw new Error('This a beta version. Mainnet not supported.')
   }
-  
+
   if (dev) {
     settings.DATA_FOLDER = path.join(__dirname, '..', 'data', settings.DATA_SUBFOLDER)
   } else {
     settings.DATA_FOLDER = path.join(process.env.HOME, '.dogecoin-spv', settings.DATA_SUBFOLDER)
   }
-  
+
   return settings
 }
 

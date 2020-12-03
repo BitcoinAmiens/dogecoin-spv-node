@@ -1,28 +1,24 @@
 const Screen = require('./screen')
 const debug = require('debug')('mnemonicScreen')
 const KEYS = require('../keys')
-const terminalStyle = require('../terminalStyle')
 
-class MnemonicScreen extends Screen{
-  mnemonic = null
-  continue = false
-  
+class MnemonicScreen extends Screen {
   constructor (mnemonic) {
     super()
-    
+
     if (typeof mnemonic !== 'string') {
-      throw new Error("Missing `mnemonic` string argument.")
+      throw new Error('Missing `mnemonic` string argument.')
     }
-    
+
     debug('Mnemonic Screen !')
-    
+
     this.mnemonic = mnemonic
-    
+    this.continue = false
+
     this.update()
   }
-  
+
   keyPressed (key) {
-    debug(key)
     switch (key) {
       case KEYS.ENTER:
         this.continue = true
@@ -34,7 +30,7 @@ class MnemonicScreen extends Screen{
         return true
     }
   }
-  
+
   update () {
     // TODO: don't cut word when showing message (making had to read)
     const layout = `
@@ -52,7 +48,6 @@ class MnemonicScreen extends Screen{
 
     process.stdout.write(layout)
   }
-  
 }
 
 module.exports = MnemonicScreen
