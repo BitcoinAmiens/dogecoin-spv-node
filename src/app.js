@@ -19,7 +19,7 @@ async function app (args) {
   }
 
   // Only support 'linux' for now
-  if (process.platform !== 'linux') {
+  if (!args.dev && process.platform !== 'linux') {
     throw new OSNotSupported(process.platform)
   }
 
