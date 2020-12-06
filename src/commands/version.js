@@ -1,6 +1,6 @@
 const { write64, readI64, readU64 } = require('../utils/write64')
-const binet = require('exp-net')
 const CompactSize = require('../utils/compactSize')
+const decodeAddress = require('../utils/decodeAddress')
 const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
 
 const NODE_PORT = 0
@@ -69,7 +69,6 @@ function decodeVersionMessage (data) {
   let offset = 0
 
   version.version = data.readUInt32LE(offset)
-
   offset += 4
 
   version.services = data.readUInt32LE(offset)
@@ -77,36 +76,14 @@ function decodeVersionMessage (data) {
   offset += 8
 
   const timestamp = readI64(data, offset)
-
   version.timestamp = new Date(timestamp)
-
   offset += 8
 
-  version.local = {}
+  version.local = decodeAddress(data.slice(offset, offset + 26))
+  offset += 26
 
-  version.local.services = data.readUInt32LE(offset)
-  // The last 4 bytes are not used
-  offset += 8
-
-  let host = data.slice(offset, offset + 16)
-  version.local.host = binet.toString(host)
-  offset += 16
-
-  version.local.port = data.readUInt16BE(offset)
-  offset += 2
-
-  version.remote = {}
-
-  version.remote.services = data.readUInt32LE(offset)
-  // The last 4 bytes are not used
-  offset += 8
-
-  host = data.slice(offset, offset + 16)
-  version.remote.host = binet.toString(host)
-  offset += 16
-
-  version.remote.port = data.readUInt16BE(offset)
-  offset += 2
+  version.remote = decodeAddress(data.slice(offset, offset + 26))
+  offset += 26
 
   const nonce = readU64(data, offset)
   version.nonce = nonce

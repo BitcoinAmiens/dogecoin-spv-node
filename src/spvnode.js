@@ -8,9 +8,13 @@ const bmp = require('bitcoin-merkle-proof')
 const dns = require('dns')
 const doubleHash = require('./utils/doubleHash')
 const path = require('path')
+const net = require('net')
 
 // slow nodes
 const BAN_LIST = []
+
+// Minimum number of peers we want to have
+const MIN_PEER_COUNT = 3
 
 class SPVNode extends EventEmitter {
   constructor (addresses, settings) {
@@ -23,6 +27,7 @@ class SPVNode extends EventEmitter {
     this._merkleSynchronizing = false
     // Peers list
     this.peers = []
+    this.peersInfo = []
     // Follow header heigh
     this.height = 0
     this.bestHeight = 0
@@ -284,6 +289,9 @@ class SPVNode extends EventEmitter {
               // Emit new SPV node state
               this.emit('newState', this._getCurrentState())
             }
+
+            // Trying to get more peers here
+            peer.sendGetAddr()
 
             resolve()
           })
@@ -726,6 +734,28 @@ class SPVNode extends EventEmitter {
     if (this.peers.indexOf(peer) >= 0) {
       debug(`Slice Peer : ${this.peers.indexOf(peer)}`)
       this.peers.slice(this.peers.indexOf(peer))
+    }
+  }
+
+  updatePeersInfo (peersInfo) {
+    const tmp = this.peersInfo.concat(peersInfo)
+    this.peersInfo = [...new Set(tmp)]
+    if (this.peers.length < MIN_PEER_COUNT) {
+      // connect
+      for (const peerInfo of this.peersInfo) {
+        let connected = false
+        for (const peer of this.peers) {
+          if (net.isIPv4(peerInfo.host) && peer.ip === peerInfo.host && peer.port === peerInfo.port) {
+            connected = true
+            break
+          }
+        }
+        if (!connected) {
+          debug(`Adding a new peer !! ${peerInfo.host}`)
+          this.addPeer(peerInfo.host, peerInfo.port)
+          break
+        }
+      }
     }
   }
 

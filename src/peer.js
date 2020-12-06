@@ -18,6 +18,7 @@ const reject = require('./commands/reject')
 const block = require('./commands/block')
 const merkleblock = require('./commands/merkleblock')
 const tx = require('./commands/tx')
+const addr = require('./commands/addr')
 
 class Peer extends EventEmitter {
   constructor (ip, port, node, settings) {
@@ -146,6 +147,9 @@ class Peer extends EventEmitter {
         case 'tx':
           this._updateTxs(msg.payload)
           break
+        case 'addr':
+          this._handleAddrMessage(msg.payload)
+          break
         case 'notfound':
           debug('What you doing ????')
           break
@@ -156,7 +160,8 @@ class Peer extends EventEmitter {
   }
 
   sendAddr () {
-    // Not needed... We don't need node to connect to us ?
+    // REVIEW: Do we need this ? We don't let people connect to us. We are not a full node.
+    // We can forward addr msg tho... https://developer.bitcoin.org/reference/p2p_networking.html#addr
   }
 
   sendGetAddr () {
@@ -423,6 +428,12 @@ class Peer extends EventEmitter {
     blockMessage.blockHeader = blockHeader
 
     this.node.processBlock(blockMessage)
+  }
+
+  _handleAddrMessage (addrPayload) {
+    const peersList = addr.decodeAddrMessage(addrPayload)
+    // TODO: Save in database!
+    this.node.updatePeersInfo(peersList.addresses)
   }
 }
 
