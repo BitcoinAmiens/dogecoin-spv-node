@@ -14,6 +14,7 @@ const { encodeVersionMessage, decodeVersionMessage } = require('../../src/comman
 const { encodePingMessage } = require('../../src/commands/ping')
 const { decodeRejectMessage } = require('../../src/commands/reject')
 const { preparePacket, decodePacket } = require('../../src/commands/packet')
+const { decodeAddrMessage } = require('../../src/commands/addr')
 
 
 const TEST_VECTORS_DIR = path.join('.', 'test', 'test_vectors')
@@ -137,6 +138,15 @@ test('successfully decode `version` payload', t => {
   t.true('services' in result)
   t.true('version' in result)
 
+})
+
+test('successfully decode `addr` payload', t => {
+  let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'addr.json'), { encoding: 'utf-8' })
+  data =  JSON.parse(data)
+  
+  let result = decodeAddrMessage(Buffer.from(data.hex, 'hex'))
+  
+  t.is(JSON.stringify(data.value), JSON.stringify(result))
 })
 
 /*
