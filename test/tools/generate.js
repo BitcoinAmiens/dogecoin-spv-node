@@ -17,8 +17,16 @@ var data
 
 {
   console.log('\n#### Generate version.json ####')
-  let version = getVersion()
+  let version = getVersion('127.0.0.1', 18444)
   let payload = encodeVersionMessage(version)
+  
+  // Convert to string for stringify
+  version.services = version.services.toString()
+  version.time = version.time.toString()
+  version.remote.services = version.remote.services.toString()
+  version.local.services = version.local.services.toString()
+  version.nonce = version.nonce.toString()
+
   data = {
     hex: payload.toString('hex'),
     value: version
@@ -29,11 +37,11 @@ var data
 
 {
   console.log('\n#### Generate ping.json ####')
-  let nonce = 1
+  let nonce = 1n
   let payload = encodePingMessage(nonce)
   data = {
     hex: payload.toString('hex'),
-    value: nonce
+    value: nonce.toString()
   }
   //fs.writeFileSync(path.join(PATH_TEST_VECTORS_DIR, 'ping.json'), JSON.stringify(data), { encoding: 'utf-8'})
   console.log('Done !\n')
@@ -103,9 +111,9 @@ var data
 
 {
   console.log('\n#### Generate packet.json ####')
-  let nonce = 1
+  let nonce = 1n
   let payload = encodePingMessage(nonce)
-  let packet = preparePacket('ping', payload)
+  let packet = preparePacket('ping', payload, 0xdcb7c1fc)
   data = {
     hex: packet.toString('hex'),
     value: {

@@ -1,5 +1,4 @@
 const CompactSize = require('../utils/compactSize')
-const { readU64 } = require('../utils/write64')
 const doubleHash = require('../utils/doubleHash')
 
 function decodeHeadersMessage (payload) {
@@ -12,8 +11,6 @@ function decodeHeadersMessage (payload) {
   offset = compactSize.offset
 
   headers.headers = []
-
-  // console.log('Headers count : ' + headers.count + ', headers count bit : ' + payload.slice(0, 3).toString('hex'))
 
   for (let i = 0; i < headers.count; i++) {
     const header = {}
@@ -99,7 +96,8 @@ function decodeHeadersMessage (payload) {
       for (let j = 0; j < parentBlock.txOutCount; j++) {
         const txOut = {}
 
-        txOut.value = readU64(payload, offset)
+        // This is merge mining Tx value... Convert the value to string directly to avoid issue with BigInt/level
+        txOut.value = payload.readBigUInt64LE(offset).toString()
         offset += 8
 
         compactSize = CompactSize.fromBuffer(payload, offset)

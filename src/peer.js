@@ -4,8 +4,6 @@ const debug = require('debug')('peer')
 
 const doubleHash = require('./utils/doubleHash')
 
-const { readU64 } = require('./utils/write64')
-
 const packet = require('./commands/packet')
 const version = require('./commands/version')
 const inv = require('./commands/inv')
@@ -280,7 +278,7 @@ class Peer extends EventEmitter {
 
       // REVIEW: Why difficulty never used ?
       // const difficulty = Math.floor(Buffer.from('ffff', 'hex').readUInt16BE() * 256**(Buffer.from('1d', 'hex').readUInt8() - 3) / target)
-      const proof = readU64(Buffer.from(header.hash, 'hex'), 0)
+      const proof = Buffer.from(header.hash, 'hex').readBigUInt64LE()
 
       if (proof > target) {
         debug('NOOOOOOO')
