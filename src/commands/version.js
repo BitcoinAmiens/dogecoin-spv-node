@@ -31,7 +31,7 @@ function getVersion (ip, port) {
 function encodeVersionMessage (payload) {
   const buffer = Buffer.alloc(86)
   let offset = 0
-  
+
   offset = buffer.writeInt32LE(payload.version, offset, true)
   offset = buffer.writeBigInt64LE(payload.services, offset)
   offset = buffer.writeBigInt64LE(payload.time, offset)
