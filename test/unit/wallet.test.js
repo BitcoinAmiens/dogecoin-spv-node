@@ -20,9 +20,6 @@ test.before(t => {
   // Only use this mnemonic for test!
   const mnemonic = 'neutral acoustic balance describe access pitch tourist skull recycle nation silent crawl'
 
-  // Clean before
-  fs.rmdirSync(settings.DATA_FOLDER, {recursive: true})
-
   if (!fs.existsSync(settings.DATA_FOLDER)) {
     fs.mkdirSync(settings.DATA_FOLDER, {recursive: true})
     fs.mkdirSync(path.join(settings.DATA_FOLDER, 'wallet'))
@@ -36,6 +33,11 @@ test.before(t => {
   
   t.context = { wallet }
   
+})
+
+test.after(t => {
+    // Clean after
+    fs.rmdirSync(path.join(__dirname, 'data'), {recursive: true})
 })
 
 test.serial('should generate a new address', t => {
