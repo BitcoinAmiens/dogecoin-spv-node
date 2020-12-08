@@ -109,7 +109,7 @@ class Wallet extends EventEmitter {
       this.unspentOutputs.createReadStream()
         .on('data', function (data) {
           debug(data)
-          balance += data.value.value
+          balance += BigInt(data.value.value)
         })
         .on('error', function (err) { reject(err) })
         .on('end', function () { resolve(balance) })
@@ -129,6 +129,7 @@ class Wallet extends EventEmitter {
     return pubkeyToAddress(Buffer.from(pk, 'hex'), this.settings.NETWORK_BYTE)
   }
 
+  // TODO: need to be async!
   addTxToWallet (tx) {
     // Whatever happened we save it even if it is not yours
     // It will be needed for filter (keeps same filter as nodes)
@@ -204,6 +205,11 @@ class Wallet extends EventEmitter {
       const output = tx.id + indexBuffer.toString('hex')
 
       debug(`New tx : ${output}`)
+
+      // prepare BigInt conversion to string so we can save to db
+      for (const i in tx.txOuts) {
+        tx.txOuts[i].value = tx.txOuts[i].value.toString()
+      }
 
       // Save full tx in 'txs'
       this.txs.put(output, tx, (err) => {
