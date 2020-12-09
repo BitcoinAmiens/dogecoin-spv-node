@@ -1,4 +1,3 @@
-const { write64, readI64, readU64 } = require('../utils/write64')
 const CompactSize = require('../utils/compactSize')
 const decodeAddress = require('../utils/decodeAddress')
 const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
@@ -8,20 +7,20 @@ const NODE_PORT = 0
 function getVersion (ip, port) {
   const version = {
     version: PROTOCOL_VERSION,
-    services: 4,
-    time: Date.now(),
+    services: 4n,
+    time: BigInt(Date.now()),
     remote: {
-      services: 1,
+      services: 1n,
       host: ip,
       port: port
     },
     local: {
-      services: 4,
+      services: 4n,
       host: '127.0.0.1',
       port: NODE_PORT
     },
     agent: 0,
-    nonce: 0,
+    nonce: 0n,
     height: 0,
     relay: false
   }
@@ -34,9 +33,10 @@ function encodeVersionMessage (payload) {
   let offset = 0
 
   offset = buffer.writeInt32LE(payload.version, offset, true)
-  offset = write64(buffer, payload.services, offset, false)
-  offset = write64(buffer, payload.time, offset, false)
-  offset = write64(buffer, payload.remote.services, offset, false)
+  offset = buffer.writeBigInt64LE(payload.services, offset)
+  offset = buffer.writeBigInt64LE(payload.time, offset)
+  offset = buffer.writeBigInt64LE(payload.remote.services, offset)
+
   offset += 10
   buffer[offset++] = 0xff
   buffer[offset++] = 0xff
@@ -46,7 +46,7 @@ function encodeVersionMessage (payload) {
     offset = buffer.writeUInt8(ch, offset)
   }
   offset = buffer.writeUInt16BE(payload.remote.port, offset, true)
-  offset = write64(buffer, payload.local.services, offset, false)
+  offset = buffer.writeBigInt64LE(payload.local.services, offset)
   offset += 10
   buffer[offset++] = 0xff
   buffer[offset++] = 0xff
@@ -56,7 +56,7 @@ function encodeVersionMessage (payload) {
     offset = buffer.writeUInt8(ch, offset)
   }
   offset = buffer.writeUInt16BE(payload.local.port, offset, true)
-  offset = write64(buffer, payload.nonce, offset, false)
+  offset = buffer.writeBigInt64LE(payload.nonce, offset)
   offset = buffer.writeUInt8(0, offset)
   offset = buffer.writeInt32LE(payload.height, offset)
   offset = buffer.writeUInt8(payload.relay, offset)
@@ -71,12 +71,12 @@ function decodeVersionMessage (data) {
   version.version = data.readUInt32LE(offset)
   offset += 4
 
-  version.services = data.readUInt32LE(offset)
+  version.services = BigInt(data.readUInt32LE(offset))
   // The last 4 bytes are not used
   offset += 8
 
-  const timestamp = readI64(data, offset)
-  version.timestamp = new Date(timestamp)
+  const timestamp = data.readBigInt64LE(offset)
+  version.timestamp = new Date(Number(timestamp))
   offset += 8
 
   version.local = decodeAddress(data.slice(offset, offset + 26))
@@ -85,7 +85,7 @@ function decodeVersionMessage (data) {
   version.remote = decodeAddress(data.slice(offset, offset + 26))
   offset += 26
 
-  const nonce = readU64(data, offset)
+  const nonce = data.readBigUInt64LE(offset)
   version.nonce = nonce
   offset += 8
 

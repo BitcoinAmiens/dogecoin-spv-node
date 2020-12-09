@@ -1,5 +1,4 @@
-const { write64, readU64 } = require('./write64')
-
+// REVIEW: Should it be a class or just functions ?
 class CompactSize {
   constructor (size, offset) {
     this.size = size
@@ -25,7 +24,7 @@ class CompactSize {
         this.offset += 4
         break
       case 'ff':
-        this.size = readU64(data, this.offset)
+        this.size = data.readBigUInt64LE(this.offset)
         this.offset += 8
         break
       default:
@@ -58,7 +57,7 @@ class CompactSize {
       buffer = Buffer.alloc(9)
       sizeByte = Buffer.from('ff', 'hex')
       sizeByte.copy(buffer)
-      write64(buffer, size, 1, false)
+      buffer.writeBigInt64LE(size, 1)
     }
     return buffer
   }

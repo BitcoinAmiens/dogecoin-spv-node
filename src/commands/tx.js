@@ -1,5 +1,4 @@
 const CompactSize = require('../utils/compactSize')
-const { readU64, write64 } = require('../utils/write64')
 const doubleHash = require('../utils/doubleHash')
 
 // TODO : Same code than for block !!!!
@@ -62,7 +61,7 @@ function decodeTxMessage (payload) {
   for (let j = 0; j < tx.txOutCount; j++) {
     const txOut = {}
 
-    txOut.value = readU64(payload, offset)
+    txOut.value = payload.readBigUInt64LE(offset)
     offset += 8
 
     compactSize = CompactSize.fromBuffer(payload, offset)
@@ -128,7 +127,7 @@ function prepareTransactionToSign (transaction, vint) {
   offset += txOutCount.length
 
   for (let txOutIndex = 0; txOutIndex < transaction.txOutCount; txOutIndex++) {
-    write64(buffer, transaction.txOuts[txOutIndex].value, offset)
+    buffer.writeBigInt64LE(transaction.txOuts[txOutIndex].value, offset)
     offset += 8
 
     const pkScriptSize = CompactSize.fromSize(transaction.txOuts[txOutIndex].pkScriptSize)
@@ -197,7 +196,7 @@ function encodeRawTransaction (transaction) {
   offset += txOutCount.length
 
   for (let txOutIndex = 0; txOutIndex < transaction.txOutCount; txOutIndex++) {
-    write64(buffer, transaction.txOuts[txOutIndex].value, offset)
+    buffer.writeBigInt64LE(transaction.txOuts[txOutIndex].value, offset)
     offset += 8
 
     const pkScriptSize = CompactSize.fromSize(transaction.txOuts[txOutIndex].pkScriptSize)
