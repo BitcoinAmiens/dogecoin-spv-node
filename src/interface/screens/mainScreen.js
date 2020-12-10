@@ -22,7 +22,9 @@ class MainScreen extends Screen {
     this.displaySendDogeScreen = args.displaySendDogeScreen
     this.stop = args.stop
 
-    this.store.on('changed', this._handleChangedEvent.bind(this))
+    this._handleChangedEvent = this._handleChangedEvent.bind(this)
+
+    this.store.on('changed', this._handleChangedEvent)
   }
 
   _handleChangedEvent () {

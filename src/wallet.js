@@ -131,11 +131,17 @@ class Wallet extends EventEmitter {
 
   // TODO: need to be async!
   addTxToWallet (tx) {
+    // prepare BigInt conversion to string so we can save to db
+    for (const i in tx.txOuts) {
+      tx.txOuts[i].value = tx.txOuts[i].value.toString()
+    }
+
     // Whatever happened we save it even if it is not yours
     // It will be needed for filter (keeps same filter as nodes)
-    this.txs.put(tx.id, tx, (err) => {
+    // REVIEW: Not sure this is true and slow down the process
+    /* this.txs.put(tx.id, tx, (err) => {
       if (err) { throw err }
-    })
+    }) */
 
     // Look for input which use our unspent output
     tx.txIns.forEach((txIn) => {
@@ -191,9 +197,6 @@ class Wallet extends EventEmitter {
           debug('unknown script')
       }
 
-      debug(this.pubkeyHashes.has(address))
-      debug(address)
-
       if (!this.pubkeyHashes.has(address)) {
         // Not in our wallet (false positive)
         return
@@ -205,11 +208,6 @@ class Wallet extends EventEmitter {
       const output = tx.id + indexBuffer.toString('hex')
 
       debug(`New tx : ${output}`)
-
-      // prepare BigInt conversion to string so we can save to db
-      for (const i in tx.txOuts) {
-        tx.txOuts[i].value = tx.txOuts[i].value.toString()
-      }
 
       // Save full tx in 'txs'
       this.txs.put(output, tx, (err) => {
