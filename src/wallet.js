@@ -104,7 +104,7 @@ class Wallet extends EventEmitter {
   }
 
   async getBalance () {
-    let balance = 0
+    let balance = BigInt(0)
     return await new Promise((resolve, reject) => {
       this.unspentOutputs.createReadStream()
         .on('data', function (data) {
@@ -273,7 +273,7 @@ class Wallet extends EventEmitter {
       hashCodeType: 1
     }
 
-    let total = 0
+    let total = BigInt(0)
 
     const balance = await this.getBalance()
 
@@ -315,7 +315,7 @@ class Wallet extends EventEmitter {
       })
 
       if (value) {
-        total += value.value
+        total += BigInt(value.value)
       }
     }
 
@@ -343,7 +343,7 @@ class Wallet extends EventEmitter {
     pkScript = Buffer.from('76a914' + test.toString('hex') + '88ac', 'hex')
 
     // TODO: fees for now make it 1 DOGE
-    const fee = 1 * this.settings.SATOSHIS
+    const fee = BigInt(1 * this.settings.SATOSHIS)
     if (total > amount) {
       transaction.txOuts[1] = {
         value: total - amount - fee,
@@ -379,7 +379,7 @@ class Wallet extends EventEmitter {
 
       const signature = secp256k1.ecdsaSign(Buffer.from(rawTransactionHash, 'hex'), key.privateKey)
 
-      const signatureDer = secp256k1.signatureExport(signature.signature)
+      const signatureDer = Buffer.from(secp256k1.signatureExport(signature.signature))
 
       const signatureCompactSize = CompactSize.fromSize(signatureDer.length + 1)
       const publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
