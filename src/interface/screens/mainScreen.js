@@ -52,7 +52,7 @@ class MainScreen extends Screen {
     }
   }
 
-  format (height = 0, bestHeight = 0, hash = null, numberOfPeers = 0, tips = new Map(), merkleHeight = 0, balance = 0) {
+  format (height = 0, bestHeight = 0, hash = null, numberOfPeers = 0, tips = new Map(), merkleHeight = 0, balance = 0n) {
     const report = process.resourceUsage()
     const rss = Math.floor(process.memoryUsage().rss / (1000 * 1000))
 

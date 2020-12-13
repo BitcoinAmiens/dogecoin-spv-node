@@ -55,7 +55,7 @@ class SendDogeScreen extends Screen {
         this.pasteAddress()
         break
       case KEYS.ENTER:
-        this.sendTransaction(this.amount, this.address)
+        this.sendTransaction(BigInt(this.amount) * SATOSHIS, this.address)
         break
       default:
         return this.modifyInputsField(key)
