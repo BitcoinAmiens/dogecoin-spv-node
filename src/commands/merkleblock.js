@@ -21,8 +21,8 @@ function decodeMerkleblockMessage (payload) {
     for (let j = 0; j < compactSize.size; j++) {
       offset += 36
 
-      compactSize = CompactSize.fromBuffer(payload, offset)
-      offset += compactSize.offset + compactSize.size + 4
+      const compactSizeTxIn = CompactSize.fromBuffer(payload, offset)
+      offset += compactSizeTxIn.offset + compactSizeTxIn.size + 4
     }
 
     // tx_out
@@ -32,8 +32,8 @@ function decodeMerkleblockMessage (payload) {
     for (let j = 0; j < compactSize.size; j++) {
       offset += 8
 
-      compactSize = CompactSize.fromBuffer(payload, offset)
-      offset += compactSize.offset + compactSize.size
+      const compactSizeTxOut = CompactSize.fromBuffer(payload, offset)
+      offset += compactSizeTxOut.offset + compactSizeTxOut.size
     }
 
     // locktime + hash

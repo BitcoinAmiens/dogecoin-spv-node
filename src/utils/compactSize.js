@@ -28,7 +28,7 @@ class CompactSize {
         this.offset += 8
         break
       default:
-        this.size = firstByte.readUInt8(0)
+        this.size = firstByte.readUInt8()
     }
 
     this.offset = this.offset - offset

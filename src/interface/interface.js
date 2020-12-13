@@ -128,8 +128,8 @@ class Interface extends EventEmitter {
       process.stdout.write(terminalStyle.CLEAR)
       this.screen = new MainScreen({
         store: this.store,
-        displayNewAddressScreen: this.displayNewAddressScreen,
-        displaySendDogeScreen: this.displaySendDogeScreen,
+        displayNewAddressScreen: this.displayNewAddressScreen.bind(this),
+        displaySendDogeScreen: this.displaySendDogeScreen.bind(this),
         stop: this.stop.bind(this)
       })
       // TODO: This ugly

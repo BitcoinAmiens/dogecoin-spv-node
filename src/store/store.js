@@ -4,7 +4,7 @@ class Store extends EventEmitter {
   constructor () {
     super()
 
-    this.balance = 0
+    this.balance = BigInt(0)
     this.height = 0
     this.bestHeight = 0
     this.hash = null
