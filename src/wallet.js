@@ -17,6 +17,8 @@ const path = require('path')
 const EventEmitter = require('events')
 const level = require('level')
 
+const SATOSHIS = require('./constants').SATOSHIS
+
 // const Transport = require('@ledgerhq/hw-transport-node-hid').default
 // const AppBtc = require('@ledgerhq/hw-app-btc').default
 const pubkeyToAddress = require('./utils/pubkeyToAddress')
@@ -296,7 +298,7 @@ class Wallet extends EventEmitter {
             return
           }
 
-          this.txs.get(value.txid)
+          this.txs.get(key)
             .then((data) => {
               transaction.txIns.push({
                 previousOutput: { hash: value.txid, index: value.vout },
@@ -341,7 +343,8 @@ class Wallet extends EventEmitter {
     pkScript = Buffer.from('76a914' + test.toString('hex') + '88ac', 'hex')
 
     // TODO: fees for now make it 1 DOGE
-    const fee = BigInt(1 * this.settings.SATOSHIS)
+    const fee = 1n * SATOSHIS
+
     if (total > amount) {
       transaction.txOuts[1] = {
         value: total - amount - fee,
