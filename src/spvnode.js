@@ -297,6 +297,7 @@ class SPVNode extends EventEmitter {
           })
             .catch((err) => {
               debug(err)
+              debug('Peer.connect failed')
               reject(err)
             })
         })
