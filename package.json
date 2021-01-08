@@ -9,13 +9,14 @@
   ],
   "author": "Lola Rigaut-Luczak <me@laflemme.lol>",
   "license": "WTFPL",
-  "main": "./src/bin/main.js",
+  "main": "./bin/main.js",
   "scripts": {
     "start": "DEBUG=* node src/main.js",
     "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon src/main.js",
     "clean": "rm -rf data",
     "test": "NETWORK=testnet nyc ava",
-    "generate": "node test/tools/generate.js"
+    "generate": "node test/tools/generate.js",
+    "lint": "standard"
   },
   "nodemonConfig": {
     "ignore": [
@@ -23,7 +24,7 @@
     ]
   },
   "bin": {
-    "dogecoin-spv": "./src/bin/main.js"
+    "dogecoin-spv": "./bin/main.js"
   },
   "ava": {
     "verbose": true,
@@ -31,15 +32,22 @@
       "test/unit/*.test.js"
     ]
   },
+  "standard": {
+    "ignore": [
+      "test/**"
+    ]
+  },
   "files": [
     "src/*",
+    "bin/*",
     "README.md",
     "package-lock.json"
   ],
   "devDependencies": {
     "ava": "^3.12.1",
     "nodemon": "^1.14.8",
-    "nyc": "^15.1.0"
+    "nyc": "^15.1.0",
+    "standard": "^16.0.3"
   },
   "dependencies": {
     "bip32": "^2.0.3",

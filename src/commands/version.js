@@ -1,62 +1,62 @@
-const {write64, readI64, readU64} = require('../utils/write64')
-const binet = require('exp-net')
 const CompactSize = require('../utils/compactSize')
+const decodeAddress = require('../utils/decodeAddress')
 const PROTOCOL_VERSION = require('../constants').PROTOCOL_VERSION
 
 const NODE_PORT = 0
 
 function getVersion (ip, port) {
-  let version = {
+  const version = {
     version: PROTOCOL_VERSION,
-    services: 4,
-    time: Date.now(),
-    remote : {
-      services: 1,
+    services: 4n,
+    time: BigInt(Date.now()),
+    remote: {
+      services: 1n,
       host: ip,
       port: port
     },
     local: {
-      services: 4,
+      services: 4n,
       host: '127.0.0.1',
       port: NODE_PORT
     },
     agent: 0,
-    nonce: 0,
+    nonce: 0n,
     height: 0,
     relay: false
   }
-  
+
   return version
 }
 
 function encodeVersionMessage (payload) {
-  const buffer = new Buffer.alloc(86)
+  const buffer = Buffer.alloc(86)
   let offset = 0
 
   offset = buffer.writeInt32LE(payload.version, offset, true)
-  offset = write64(buffer, payload.services, offset, false)
-  offset = write64(buffer, payload.time, offset, false)
-  offset = write64(buffer, payload.remote.services, offset, false)
+  offset = buffer.writeBigInt64LE(payload.services, offset)
+  offset = buffer.writeBigInt64LE(payload.time, offset)
+  offset = buffer.writeBigInt64LE(payload.remote.services, offset)
+
   offset += 10
   buffer[offset++] = 0xff
   buffer[offset++] = 0xff
-  var parts = payload.remote.host.split('.')
-  for (var ch of parts) {
+  let parts = payload.remote.host.split('.')
+  for (let ch of parts) {
     ch = parseInt(ch, 10)
     offset = buffer.writeUInt8(ch, offset)
   }
   offset = buffer.writeUInt16BE(payload.remote.port, offset, true)
-  offset = write64(buffer, payload.local.services, offset, false)
+  offset = buffer.writeBigInt64LE(payload.local.services, offset)
   offset += 10
   buffer[offset++] = 0xff
   buffer[offset++] = 0xff
   parts = payload.local.host.split('.')
-  for (ch of parts) {
+  for (let ch of parts) {
     ch = parseInt(ch, 10)
     offset = buffer.writeUInt8(ch, offset)
   }
   offset = buffer.writeUInt16BE(payload.local.port, offset, true)
-  offset = write64(buffer, payload.nonce, offset, false)
+  offset = buffer.writeBigInt64LE(payload.nonce, offset)
   offset = buffer.writeUInt8(0, offset)
   offset = buffer.writeInt32LE(payload.height, offset)
   offset = buffer.writeUInt8(payload.relay, offset)
@@ -65,59 +65,36 @@ function encodeVersionMessage (payload) {
 }
 
 function decodeVersionMessage (data) {
-  var version = {}
+  const version = {}
   let offset = 0
 
   version.version = data.readUInt32LE(offset)
-
   offset += 4
 
-  version.services = data.readUInt32LE(offset)
+  version.services = BigInt(data.readUInt32LE(offset))
   // The last 4 bytes are not used
   offset += 8
 
-  var timestamp = readI64(data, offset)
-
-  version.timestamp = new Date(timestamp)
-
+  const timestamp = data.readBigInt64LE(offset)
+  version.timestamp = new Date(Number(timestamp))
   offset += 8
 
-  version.local = {}
+  version.local = decodeAddress(data.slice(offset, offset + 26))
+  offset += 26
 
-  version.local.services = data.readUInt32LE(offset)
-  // The last 4 bytes are not used
-  offset += 8
+  version.remote = decodeAddress(data.slice(offset, offset + 26))
+  offset += 26
 
-  var host = data.slice(offset, offset + 16)
-  version.local.host = binet.toString(host)
-  offset += 16
-
-  version.local.port = data.readUInt16BE(offset)
-  offset += 2
-
-  version.remote = {}
-
-  version.remote.services = data.readUInt32LE(offset)
-  // The last 4 bytes are not used
-  offset += 8
-
-  var host = data.slice(offset, offset + 16)
-  version.remote.host = binet.toString(host)
-  offset += 16
-
-  version.remote.port = data.readUInt16BE(offset)
-  offset += 2
-
-  var nonce = readU64(data, offset)
+  const nonce = data.readBigUInt64LE(offset)
   version.nonce = nonce
   offset += 8
 
-  var compactSize = CompactSize.fromBuffer(data, offset)
+  const compactSize = CompactSize.fromBuffer(data, offset)
 
   offset += compactSize.offset
-  var userAgentSize = compactSize.size
+  const userAgentSize = compactSize.size
 
-  var userAgent = data.slice(offset, offset + userAgentSize)
+  const userAgent = data.slice(offset, offset + userAgentSize)
 
   version.agent = userAgent.toString()
   offset += userAgentSize

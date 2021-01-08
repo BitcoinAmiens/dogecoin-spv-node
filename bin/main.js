@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const meow = require('meow')
-const app = require('../app')
-const networks = require('../network')
+const app = require('../src/app')
+const networks = require('../src/network')
 
 const cli = meow(`
     !!! Important !!!
@@ -21,29 +21,29 @@ const cli = meow(`
       $ dogecoin-spv start --regtest
       
 `, {
-    flags: {
-        regtest: {
-            type: 'boolean',
-            alias: 'r'
-        },
-        dev: {
-          type: 'boolean',
-          alias: 'd'
-        }
+  flags: {
+    regtest: {
+      type: 'boolean',
+      alias: 'r'
+    },
+    dev: {
+      type: 'boolean',
+      alias: 'd'
     }
+  }
 })
 
 if (cli.input[0] !== 'start') {
   cli.showHelp()
 }
 
-var network = networks.TESTNET
+let network = networks.TESTNET
 
 if (cli.flags.regtest) {
   network = networks.REGTEST
 }
 
-app({network, dev: cli.flags.dev})
+app({ network, dev: cli.flags.dev })
   .catch(function (err) {
     console.error(err)
   })

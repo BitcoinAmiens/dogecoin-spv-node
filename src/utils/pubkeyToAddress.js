@@ -2,7 +2,7 @@ const bs58check = require('bs58check')
 const RIPEMD160 = require('ripemd160')
 const crypto = require('crypto')
 
-function pubkeyToAddress (pubkey, networkByte, hash=false, redeemScriptHash=false) {
+function pubkeyToAddress (pubkey, networkByte, hash = false, redeemScriptHash = false) {
   let pubKeyHash = pubkey
 
   if (!hash) {
@@ -11,17 +11,15 @@ function pubkeyToAddress (pubkey, networkByte, hash=false, redeemScriptHash=fals
   }
 
   // TODO: Testnet parameter
-  networkByte = new Buffer.from(networkByte, 'hex')
+  networkByte = Buffer.from(networkByte, 'hex')
 
   if (redeemScriptHash) {
-    networkByte = new Buffer.from('c4', 'hex')
+    networkByte = Buffer.from('c4', 'hex')
   }
 
-  let temp = Buffer.concat([networkByte, pubKeyHash])
+  const temp = Buffer.concat([networkByte, pubKeyHash])
 
   return bs58check.encode(temp)
 }
-
-
 
 module.exports = pubkeyToAddress

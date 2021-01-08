@@ -1,6 +1,6 @@
 
 class OSNotSupported extends Error {
-  constructor(platform) {
+  constructor (platform) {
     super(`Platform ${platform} not supported.`)
     this.name = 'OSNotSupported'
   }

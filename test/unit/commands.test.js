@@ -14,6 +14,7 @@ const { encodeVersionMessage, decodeVersionMessage } = require('../../src/comman
 const { encodePingMessage } = require('../../src/commands/ping')
 const { decodeRejectMessage } = require('../../src/commands/reject')
 const { preparePacket, decodePacket } = require('../../src/commands/packet')
+const { decodeAddrMessage } = require('../../src/commands/addr')
 
 
 const TEST_VECTORS_DIR = path.join('.', 'test', 'test_vectors')
@@ -90,7 +91,7 @@ test('successfully encode `ping` payload', t => {
   let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'ping.json'), { encoding: 'utf-8' })
   data =  JSON.parse(data)
   
-  let result = encodePingMessage(data.value)
+  let result = encodePingMessage(BigInt(data.value))
 
   t.is(data.hex, result.toString('hex'))
 })
@@ -108,14 +109,28 @@ test('successfully decode `tx` payload', t => {
   let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'tx.json'), { encoding: 'utf-8' })
   data =  JSON.parse(data)
   
+  // Convert string to BigInt
+  // and buffer
+  for (let i in data.value.txOuts) {
+    data.value.txOuts[i].value = BigInt(data.value.txOuts[i].value)
+    data.value.txOuts[i].pkScript = Buffer.from(data.value.txOuts[i].pkScript.data)
+  }
+  
   let result = decodeTxMessage(Buffer.from(data.hex, 'hex'))
 
-  t.is(JSON.stringify(data.value), JSON.stringify(result))
+  t.deepEqual(data.value, result)
 })
 
 test('successfully encode `version` payload', t => {
   let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'version.json'), { encoding: 'utf-8' })
   data =  JSON.parse(data)
+  
+  // Convert string to BigInt
+  data.value.services = BigInt(data.value.services)
+  data.value.time = BigInt(data.value.time)
+  data.value.remote.services = BigInt(data.value.remote.services)
+  data.value.local.services = BigInt(data.value.local.services)
+  data.value.nonce = BigInt(data.value.nonce)
   
   let result = encodeVersionMessage(data.value)
 
@@ -137,6 +152,15 @@ test('successfully decode `version` payload', t => {
   t.true('services' in result)
   t.true('version' in result)
 
+})
+
+test('successfully decode `addr` payload', t => {
+  let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'addr.json'), { encoding: 'utf-8' })
+  data =  JSON.parse(data)
+  
+  let result = decodeAddrMessage(Buffer.from(data.hex, 'hex'))
+  
+  t.is(JSON.stringify(data.value), JSON.stringify(result))
 })
 
 /*

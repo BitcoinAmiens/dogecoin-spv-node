@@ -3,4 +3,16 @@ node_js:
   - lts/*
   
 script:
+  - npm run lint
   - npm test
+
+before_deploy:
+  - npm pack
+
+deploy:
+  provider: releases
+  api_key: $GH_TOKEN  
+  file: dogecoin-spv-${TRAVIS_TAG/v}.tgz
+  skip_cleanup: true
+  on:
+    tags: true

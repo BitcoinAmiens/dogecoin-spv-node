@@ -1,11 +1,11 @@
 const CompactSize = require('../utils/compactSize')
 
 function decodeMerkleblockMessage (payload) {
-  var merkleblock = {}
+  const merkleblock = {}
   let offset = 0
-  var compactSize
+  let compactSize
 
-  if (payload.slice(1,4).toString('hex') === '016200') {
+  if (payload.slice(1, 4).toString('hex') === '016200') {
     // Merged mining block header
 
     // Normal header
@@ -18,22 +18,22 @@ function decodeMerkleblockMessage (payload) {
     offset += compactSize.offset
 
     // tx_in
-    for (let j=0; j<compactSize.size; j++) {
+    for (let j = 0; j < compactSize.size; j++) {
       offset += 36
 
-      let compactSize = CompactSize.fromBuffer(payload, offset)
-      offset += compactSize.offset + compactSize.size + 4
+      const compactSizeTxIn = CompactSize.fromBuffer(payload, offset)
+      offset += compactSizeTxIn.offset + compactSizeTxIn.size + 4
     }
 
     // tx_out
     compactSize = CompactSize.fromBuffer(payload, offset)
     offset += compactSize.offset
 
-    for (let j=0; j< compactSize.size; j++) {
+    for (let j = 0; j < compactSize.size; j++) {
       offset += 8
 
-      let compactSize = CompactSize.fromBuffer(payload, offset)
-      offset += compactSize.offset + compactSize.size
+      const compactSizeTxOut = CompactSize.fromBuffer(payload, offset)
+      offset += compactSizeTxOut.offset + compactSizeTxOut.size
     }
 
     // locktime + hash
@@ -41,14 +41,14 @@ function decodeMerkleblockMessage (payload) {
 
     // Coinbase Branch : Merkle branch
     compactSize = CompactSize.fromBuffer(payload, offset)
-    offset += compactSize.offset + compactSize.size*32
+    offset += compactSize.offset + compactSize.size * 32
 
     // branch side mask
     offset += 4
 
     // Blockchain Branch : Merkle branch
     compactSize = CompactSize.fromBuffer(payload, offset)
-    offset += compactSize.offset + compactSize.size*32
+    offset += compactSize.offset + compactSize.size * 32
 
     // branch side mask
     offset += 4
@@ -57,7 +57,6 @@ function decodeMerkleblockMessage (payload) {
     offset += 80
 
     merkleblock.blockHeader = payload.slice(0, offset)
-
   } else {
     merkleblock.blockHeader = payload.slice(offset, offset + 80)
     offset += 80
@@ -72,8 +71,8 @@ function decodeMerkleblockMessage (payload) {
   merkleblock.hashCount = compactSize.size
 
   merkleblock.hashes = []
-  for (var i = 0; i < merkleblock.hashCount; i++) {
-    var hash = payload.slice(offset, offset + 32)
+  for (let i = 0; i < merkleblock.hashCount; i++) {
+    const hash = payload.slice(offset, offset + 32)
     offset += 32
 
     merkleblock.hashes.push(hash)

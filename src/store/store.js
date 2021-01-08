@@ -1,14 +1,18 @@
 const EventEmitter = require('events')
 
 class Store extends EventEmitter {
-  balance = 0
-  height = 0
-  bestHeight = 0
-  hash = null
-  peers = new Map()
-  tips = new Map()
-  merkleHeight = 0
-  rejectMessage = {}
+  constructor () {
+    super()
+
+    this.balance = BigInt(0)
+    this.height = 0
+    this.bestHeight = 0
+    this.hash = null
+    this.peers = new Map()
+    this.tips = new Map()
+    this.merkleHeight = 0
+    this.rejectMessage = {}
+  }
 
   getNumPeers () {
     return this.peers.length
@@ -32,13 +36,12 @@ class Store extends EventEmitter {
 
     this.emit('changed')
   }
-  
+
   setRejectMessage (rejectMessage) {
     this.rejectMessage = rejectMessage
-    
+
     this.emit('rejected')
   }
-
 }
 
 module.exports = Store
