@@ -1,5 +1,5 @@
 const Screen = require('./screen')
-const SATOSHIS = require('../../constants').SATOSHIS
+const {SATOSHIS, MIN_FEE} = require('../../constants')
 const KEYS = require('../keys')
 const debug = require('debug')('sendDogeScreen')
 const terminalStyle = require('../terminalStyle')
@@ -55,7 +55,7 @@ class SendDogeScreen extends Screen {
         this.pasteAddress()
         break
       case KEYS.ENTER:
-        this.sendTransaction(BigInt(this.amount) * SATOSHIS, this.address)
+        this._sendDogecoin(BigInt(this.amount) * SATOSHIS, this.address)
         break
       default:
         return this.modifyInputsField(key)
@@ -96,6 +96,20 @@ class SendDogeScreen extends Screen {
     this.setAmount(amount)
   }
 
+  async _sendDogecoin (amount, address) {
+    try {
+      const transactionHash = await this.sendTransaction(amount, address)
+      process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines - 1), () => {
+        this.update('', `Sent ! ${transactionHash.toString('hex')}`)
+      })
+    } catch (err) {
+      process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines - 1), () => {
+        this.update(`Fail to send : ${err.message}`, '')
+      })
+    }
+
+  }
+
   setSelected (newValue) {
     this.selected = newValue
 
@@ -120,12 +134,13 @@ class SendDogeScreen extends Screen {
     })
   }
 
-  update (rejectMessage = '') {
+  update (rejectMessage = '', successMessage = '') {
     const layout = `
 ================ SEND DOGECOINS ================
-  ${rejectMessage}
+  ${rejectMessage || successMessage}
 
   Current balance: ${this.store.balance / SATOSHIS} Ð                   
+  Fee: ${MIN_FEE} Ð
 
   Amount: ${this.renderAmountField()} Ð                                         
   To: ${this.renderToField()}

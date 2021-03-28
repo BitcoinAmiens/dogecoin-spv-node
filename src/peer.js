@@ -36,6 +36,9 @@ class Peer extends EventEmitter {
     this.bestHeight = 0
     this.count = 0
 
+    // Have we queried this peer of data and are we waiting for an answer ?
+    this.queried = false
+
     this.socket.on('data', (data) => {
       this._onData(data).catch((err) => debug(err))
     })
@@ -182,36 +185,27 @@ class Peer extends EventEmitter {
     })
   }
 
-  sendGetHeader (blockHash) {
-    debug(`peer n° ${this.id} getheaders\nAsked for : ${blockHash}`)
+  async sendGetHeader (blockHash) {
+    debug(`peer ${this.ip} getheaders\nAsked for : ${blockHash}`)
     const payload = getheaders.encodeGetheadersMessage(blockHash)
     const getHeadersMessage = packet.preparePacket('getheaders', payload, this.settings.MAGIC_BYTES)
-    this.socket.write(getHeadersMessage, function (err) {
-      if (err) {
-        debug(err)
-      }
-    })
+    await this.socket.write(getHeadersMessage)
+    this.queried = true
   }
 
-  sendGetBlocks (blockHash, lastHash = '0000000000000000000000000000000000000000000000000000000000000000') {
-    debug(`peer n° ${this.id} getblocks\nAsked for : ${blockHash}`)
+  async sendGetBlocks (blockHash, lastHash = '0000000000000000000000000000000000000000000000000000000000000000') {
+    debug(`peer ${this.ip} getblocks\nAsked for : ${blockHash}`)
     const payload = getblocks.encodeGetblocksMessage(blockHash, lastHash)
     const getBlocksMessage = packet.preparePacket('getblocks', payload, this.settings.MAGIC_BYTES)
-    this.socket.write(getBlocksMessage, function (err) {
-      if (err) {
-        debug(err)
-      }
-    })
+    await this.socket.write(getBlocksMessage)
+    this.queried = true
   }
 
-  sendGetData (inv) {
-    debug(`peer n° ${this.id} getdata`)
+  async sendGetData (inv) {
+    debug(`peer ${this.ip} getdata`)
     const getDataMessage = packet.preparePacket('getdata', inv, this.settings.MAGIC_BYTES)
-    this.socket.write(getDataMessage, function (err) {
-      if (err) {
-        debug(err)
-      }
-    })
+    await this.socket.write(getDataMessage)
+    this.queried = true
   }
 
   sendFilterAdd (element) {
@@ -229,28 +223,23 @@ class Peer extends EventEmitter {
     })
   }
 
-  sendRawTransaction (rawTransaction) {
+  async sendRawTransaction (rawTransaction) {
     const txMessage = packet.preparePacket('tx', rawTransaction, this.settings.MAGIC_BYTES)
-    this.socket.write(txMessage, function (err) {
-      if (err) {
-        debug(err)
-      }
-      debug('Raw Tx sent')
-    })
+    await this.socket.write(txMessage)
   }
 
-  _sendVerackMessage () {
+  async _sendVerackMessage () {
     const verackMessage = packet.preparePacket('verack', Buffer.alloc(0), this.settings.MAGIC_BYTES)
-    this.socket.write(verackMessage)
+    await this.socket.write(verackMessage)
   }
 
-  _sendPongMessage (nonce) {
+  async _sendPongMessage (nonce) {
     const pongMessage = packet.preparePacket('pong', nonce, this.settings.MAGIC_BYTES)
-    this.socket.write(pongMessage)
+    await this.socket.write(pongMessage)
   }
 
   _onClose (response) {
-    debug('Connection closed')
+    debug(`Connection closed ${this.ip}`)
     this.emit('closed')
     this.socket = null
     this.node.removePeer(this)
@@ -264,7 +253,7 @@ class Peer extends EventEmitter {
   async _updateHeaders (headersPayload) {
     const headersMessage = headers.decodeHeadersMessage(headersPayload)
 
-    debug(`peer n° ${this.id} received headers message\nIp : ${this.ip}`)
+    debug(`peer ${this.ip} received headers message`)
     /* Verify difficulty */
     headersMessage.headers.forEach((header) => {
       const buf = Buffer.from(header.nBits, 'hex')
@@ -318,7 +307,8 @@ class Peer extends EventEmitter {
   async _handleInvMessage (invPayload) {
     const invMessage = inv.decodeInvMessage(invPayload)
 
-    debug(`peer n° ${this.id} received inv message\nIp : ${this.ip}\nInv Count : ${invMessage.count}`)
+    debug(`peer ${this.ip} received inv message\nInv Count : ${invMessage.count}`)
+    this.queried = false
 
     // It just notified us of a new bock.
     // TODO: We don't need this anymore
@@ -391,6 +381,7 @@ class Peer extends EventEmitter {
 
   _handleBlock (blockPayload) {
     const blockMessage = block.decodeBlockMessage(blockPayload)
+    this.queried = false
 
     // Decode header
     const buffer = Buffer.from(blockMessage.blockHeader, 'hex')
