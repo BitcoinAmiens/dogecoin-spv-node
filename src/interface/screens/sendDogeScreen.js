@@ -1,5 +1,5 @@
 const Screen = require('./screen')
-const {SATOSHIS, MIN_FEE} = require('../../constants')
+const { SATOSHIS, MIN_FEE } = require('../../constants')
 const KEYS = require('../keys')
 const debug = require('debug')('sendDogeScreen')
 const terminalStyle = require('../terminalStyle')
@@ -107,7 +107,6 @@ class SendDogeScreen extends Screen {
         this.update(`Fail to send : ${err.message}`, '')
       })
     }
-
   }
 
   setSelected (newValue) {

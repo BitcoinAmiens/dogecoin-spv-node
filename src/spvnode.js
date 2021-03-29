@@ -152,7 +152,7 @@ class SPVNode extends EventEmitter {
     // DNS peer
     const promises = []
 
-    for (let host of this.settings.DNS_SEED) {
+    for (const host of this.settings.DNS_SEED) {
       const promise = new Promise((resolve, reject) => {
         this._getDnsSeed(host)
           .then((result) => {
@@ -169,16 +169,17 @@ class SPVNode extends EventEmitter {
                 })
                 .catch(function (err) {
                   debug(`Fail to connect to ${ip}`)
-                  //debug(err)
+                  debug(err)
 
                   // TODO: Wait for `any` to be supported and replace
-                  //resolve(err)
+                  // resolve(err)
                 })
             })
           })
           .catch(function (err) {
             debug(`Fail to get DNS seed from ${host}`)
-            //reject(err)
+            debug(err)
+            // reject(err)
           })
       })
       promises.push(promise)
@@ -293,7 +294,7 @@ class SPVNode extends EventEmitter {
             })
         })
         .catch((error) => {
-          //debug(error)
+          // debug(error)
           reject(error)
         })
     })
@@ -647,8 +648,8 @@ class SPVNode extends EventEmitter {
 
       if (this.merkleBlockCount === 0) {
         // Find querying node and update state
-        for (let peer of this.peers) {
-          if (peer.queried) { peer.queried = false; break;}
+        for (const peer of this.peers) {
+          if (peer.queried) { peer.queried = false; break }
         }
 
         // This should be done once we have cleared all the merkle blocks

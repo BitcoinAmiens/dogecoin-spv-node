@@ -17,7 +17,7 @@ const path = require('path')
 const EventEmitter = require('events')
 const level = require('level')
 
-const {SATOSHIS, MIN_FEE} = require('./constants')
+const { SATOSHIS, MIN_FEE } = require('./constants')
 
 // const Transport = require('@ledgerhq/hw-transport-node-hid').default
 // const AppBtc = require('@ledgerhq/hw-app-btc').default
@@ -112,7 +112,7 @@ class Wallet extends EventEmitter {
     return await new Promise((resolve, reject) => {
       this.unspentOutputs.createReadStream()
         .on('data', (data) => {
-          if (this.pendingTxIns.has(data.key.slice(0,-8))) {
+          if (this.pendingTxIns.has(data.key.slice(0, -8))) {
             // dont count pending transaction in balance
             return
           }
@@ -344,7 +344,7 @@ class Wallet extends EventEmitter {
     await new Promise(function (resolve, reject) {
       unspentOuputsIterator.end(function (err) {
         if (err) { reject(err) }
-        
+
         resolve()
       })
     })
