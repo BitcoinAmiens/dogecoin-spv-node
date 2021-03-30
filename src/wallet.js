@@ -17,7 +17,7 @@ const path = require('path')
 const EventEmitter = require('events')
 const level = require('level')
 
-const SATOSHIS = require('./constants').SATOSHIS
+const { SATOSHIS, MIN_FEE } = require('./constants')
 
 // const Transport = require('@ledgerhq/hw-transport-node-hid').default
 // const AppBtc = require('@ledgerhq/hw-app-btc').default
@@ -31,6 +31,8 @@ class Wallet extends EventEmitter {
     this.settings = settings
     this.pubkeys = new Map()
     this.pubkeyHashes = new Map()
+    this.pendingTxIns = new Map()
+    this.pendingTxOuts = new Map()
     this.unspentOutputs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'unspent'), { valueEncoding: 'json' })
     this.txs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'tx'), { valueEncoding: 'json' })
 
@@ -109,12 +111,23 @@ class Wallet extends EventEmitter {
     let balance = BigInt(0)
     return await new Promise((resolve, reject) => {
       this.unspentOutputs.createReadStream()
-        .on('data', function (data) {
-          debug(data)
+        .on('data', (data) => {
+          if (this.pendingTxIns.has(data.key.slice(0, -8))) {
+            // dont count pending transaction in balance
+            return
+          }
+
           balance += BigInt(data.value.value)
         })
         .on('error', function (err) { reject(err) })
-        .on('end', function () { resolve(balance) })
+        .on('end', () => {
+          // Adding pending tx out for more accurate balance
+          this.pendingTxOuts.forEach((txout) => {
+            balance += txout.value
+          })
+
+          resolve(balance)
+        })
     })
   }
 
@@ -138,6 +151,10 @@ class Wallet extends EventEmitter {
       tx.txOuts[i].value = tx.txOuts[i].value.toString()
     }
 
+    if (this.pendingTxOuts.has(tx.id)) {
+      this.pendingTxOuts.delete(tx.id)
+    }
+
     // Whatever happened we save it even if it is not yours
     // It will be needed for filter (keeps same filter as nodes)
     // REVIEW: Not sure this is true and slow down the process
@@ -158,13 +175,15 @@ class Wallet extends EventEmitter {
         if (err && err.type !== 'NotFoundError') throw err
         if (err && err.type === 'NotFoundError') return
 
-        debug('We have spent this')
-        debug(tx.txOuts)
-
         if (value) {
           // remove the transaction from unspent transaction list
           this.unspentOutputs.del(previousOutput, (err) => {
             if (err) throw err
+
+            // remove from pending tx
+            if (this.pendingTxIns.has(txIn.previousOutput.hash)) {
+              this.pendingTxIns.delete(txIn.previousOutput.hash)
+            }
 
             // TODO: cache balance
             this.emit('balance')
@@ -173,7 +192,7 @@ class Wallet extends EventEmitter {
       })
     })
 
-    // And we actually need txOuts records not txs stupid (:heart:)
+    // And we actually need txOuts records not txs
     // Do we actually want to do that bit here ? Might be interesting to have it in the main app
     // because in the future we want to decouple spvnode and wallet.
     tx.txOuts.forEach((txOut, index) => {
@@ -279,7 +298,7 @@ class Wallet extends EventEmitter {
 
     if (balance < amount) {
       debug('Not enought funds!')
-      return
+      throw new Error('Not enought funds')
     }
 
     const unspentOuputsIterator = this.unspentOutputs.iterator()
@@ -300,14 +319,17 @@ class Wallet extends EventEmitter {
 
           this.txs.get(key)
             .then((data) => {
-              transaction.txIns.push({
+              const txin = {
                 previousOutput: { hash: value.txid, index: value.vout },
                 // Temporary just so we can sign it (https://bitcoin.stackexchange.com/questions/32628/redeeming-a-raw-transaction-step-by-step-example-required/32695#32695)
                 signature: Buffer.from(data.txOuts[value.vout].pkScript.data, 'hex'),
                 sequence: 4294967294
-              })
+              }
+              transaction.txIns.push(txin)
 
               transaction.txInCount = transaction.txIns.length
+
+              this.pendingTxIns.set(value.txid, txin)
 
               resolve(value)
             })
@@ -337,13 +359,11 @@ class Wallet extends EventEmitter {
       pkScript
     }
 
-    // TODO: Changed address should be pick from database.... and not hardcoded
     test = bs58check.decode(changeAddress).slice(1)
-    debug(test.toString('hex'))
     pkScript = Buffer.from('76a914' + test.toString('hex') + '88ac', 'hex')
 
     // TODO: fees for now make it 1 DOGE
-    const fee = 1n * SATOSHIS
+    const fee = MIN_FEE * SATOSHIS
 
     if (total > amount) {
       transaction.txOuts[1] = {
@@ -394,6 +414,10 @@ class Wallet extends EventEmitter {
     delete transaction.hashCodeType
 
     const rawTransaction = encodeRawTransaction(transaction)
+
+    if (transaction.txOuts[1]) {
+      this.pendingTxOuts.set(doubleHash(rawTransaction).toString('hex'), transaction.txOuts[1])
+    }
 
     return rawTransaction
   }

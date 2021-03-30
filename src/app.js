@@ -7,6 +7,7 @@ const debug = require('debug')('app')
 const Interface = require('./interface/interface')
 const Store = require('./store/store')
 const { OSNotSupported } = require('./error')
+const doubleHash = require('./utils/doubleHash')
 
 const fs = require('fs')
 const path = require('path')
@@ -49,14 +50,13 @@ async function app (args) {
     })
 
   // Will be needed in the interface
-  const sendTransaction = (amount, address) => {
-    wallet.send(amount, address)
-      .then(function (rawTransaction) {
-        debug(rawTransaction.toString('hex'))
-
-        spvnode.sendRawTransaction(rawTransaction)
-        debug('SENT !')
-      })
+  const sendTransaction = async (amount, address) => {
+    const rawTransaction = await wallet.send(amount, address)
+    spvnode.sendRawTransaction(rawTransaction)
+    debug('SENT !')
+    const newBalance = await wallet.getBalance()
+    store.setBalance(newBalance)
+    return doubleHash(rawTransaction).reverse()
   }
 
   // Will be needed in the interface
