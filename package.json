@@ -1,6 +1,6 @@
 {
   "name": "dogecoin-spv",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Dogecoin SPV wallet (beta)",
   "keywords": [
     "dogecoin",
