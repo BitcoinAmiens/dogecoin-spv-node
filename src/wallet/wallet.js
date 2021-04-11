@@ -1,13 +1,11 @@
 const bip39 = require('bip39')
 const bip32 = require('bip32')
-const { prepareTransactionToSign, encodeRawTransaction } = require('./commands/tx')
+const { encodeRawTransaction } = require('../commands/tx')
 const bs58check = require('bs58check')
-const doubleHash = require('./utils/doubleHash')
-const { getAddressFromScript } = require('./utils/script')
-const CompactSize = require('./utils/compactSize')
+const doubleHash = require('../utils/doubleHash')
+const { getAddressFromScript } = require('../utils/script')
+const CompactSize = require('../utils/compactSize')
 
-const RIPEMD160 = require('ripemd160')
-const crypto = require('crypto')
 const secp256k1 = require('secp256k1')
 
 const debug = require('debug')('wallet')
@@ -17,11 +15,8 @@ const path = require('path')
 const EventEmitter = require('events')
 const level = require('level')
 
-const { SATOSHIS, MIN_FEE } = require('./constants')
-
-// const Transport = require('@ledgerhq/hw-transport-node-hid').default
-// const AppBtc = require('@ledgerhq/hw-app-btc').default
-const pubkeyToAddress = require('./utils/pubkeyToAddress')
+const { pubkeyToAddress, pubkeyToPubkeyHash, prepareTransactionToSign } = require('./utils')
+const { MissingSeedError } = require('./errors')
 
 // HD wallet for dogecoin
 class Wallet extends EventEmitter {
@@ -72,7 +67,7 @@ class Wallet extends EventEmitter {
     return Buffer.from(jsonData.seed, 'hex')
   }
 
-  generateMnemonic () {
+  static generateMnemonic () {
     return bip39.generateMnemonic()
   }
 
@@ -82,20 +77,14 @@ class Wallet extends EventEmitter {
   }
 
   _getMasterPrivKey () {
-    if (!this._seed) throw new Error('You need your seed first')
+    if (!this._seed) throw new MissingSeedError()
     const root = bip32.fromSeed(this._seed, this.settings.WALLET)
     return root.toBase58()
   }
 
-  _pubkeyToPubkeyHash (pubkey) {
-    let pubKeyHash = crypto.createHash('sha256').update(pubkey).digest()
-    pubKeyHash = new RIPEMD160().update(pubKeyHash).digest()
-    return pubKeyHash
-  }
-
   _updatePubkeysState (index, publicKey, changeAddress = 0) {
     this.pubkeys.set(publicKey.toString('hex'), { index, changeAddress, used: false })
-    const pubKeyHash = this._pubkeyToPubkeyHash(publicKey)
+    const pubKeyHash = pubkeyToPubkeyHash(publicKey)
     this.pubkeyHashes.set(pubKeyHash.toString('hex'), { publicKey, index, changeAddress })
   }
 
@@ -270,7 +259,7 @@ class Wallet extends EventEmitter {
     return child
   }
 
-  async send (amount, to) {
+  async send (amount, to, fee) {
     let changeAddress
     for (const [key, value] of this.pubkeys.entries()) {
       if (value.changeAddress && !value.used) {
@@ -362,9 +351,6 @@ class Wallet extends EventEmitter {
     test = bs58check.decode(changeAddress).slice(1)
     pkScript = Buffer.from('76a914' + test.toString('hex') + '88ac', 'hex')
 
-    // TODO: fees for now make it 1 DOGE
-    const fee = MIN_FEE * SATOSHIS
-
     if (total > amount) {
       transaction.txOuts[1] = {
         value: total - amount - fee,
@@ -395,9 +381,6 @@ class Wallet extends EventEmitter {
 
       const key = this.getPrivateKey(value.index, value.changeAddress)
 
-      let pubKeyHash = crypto.createHash('sha256').update(key.publicKey).digest()
-      pubKeyHash = new RIPEMD160().update(pubKeyHash).digest()
-
       const signature = secp256k1.ecdsaSign(Buffer.from(rawTransactionHash, 'hex'), key.privateKey)
 
       const signatureDer = Buffer.from(secp256k1.signatureExport(signature.signature))
@@ -421,39 +404,6 @@ class Wallet extends EventEmitter {
 
     return rawTransaction
   }
-
-  createTransaction (inputs, associatedKeys, changePath, outputScriptHex) {
-
-  }
-
-  /*
-  async connectToLedger () {
-    const transport = await Transport.create()
-    this.app = new AppBtc(transport)
-  }
-
-  async getAddressFromLedger () {
-    const path = constants.PATH + '0' + '/' + this.addresses.length
-    console.log(path)
-    const result = await this.app.getWalletPublicKey(path)
-    const address = result.bitcoinAddress
-    this.addresses.push(address)
-    return address
-  }
-
-  async createTransactionFromLedger (inputs, associatedKeys, changePath, outputScriptHex) {
-    const tx = await this.app.createPaymentTransactionNew(inputs, associatedKeys, changePath, outputScriptHex)
-    return tx
-  }
-
-  serializeTransactionOutputs (bufferData) {
-    return this.app.serializeTransactionOutputs(bufferData)
-  }
-
-  splitTransaction (txHex) {
-    return this.app.splitTransaction(txHex)
-  }
-  */
 }
 
 module.exports = Wallet

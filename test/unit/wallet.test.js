@@ -5,6 +5,7 @@ const networks = require('../../src/network')
 const fs = require('fs')
 const path = require('path')
 const { decodeTxMessage } = require('../../src/commands/tx')
+const { SATOSHIS, MIN_FEE } = require('../../src/constants')
 
 function sleep(millis) {
   return new Promise(resolve => setTimeout(resolve, millis));
@@ -68,7 +69,7 @@ test.serial('should create a newly signed transaction', async t => {
   let wallet = t.context.wallet
   
   let amount = 10n
-  let tx = await wallet.send(amount, 'nVttKKCcjJT5k3TZKe54HedpZugbwfsp5W')
+  let tx = await wallet.send(amount, 'nVttKKCcjJT5k3TZKe54HedpZugbwfsp5W', MIN_FEE * SATOSHIS)
   
   t.is(decodeTxMessage(tx).txIns[0].signature, '483045022100cb08c91a6de8b3bc8b9738927e891397b988952cbc8b25c18f5555948945028002206895857c3871ff1e29da8005d85c0233898cf7e0c0b63810e03ce087bdfc7e64012102c8a4ac5ff642b0ede931afd357e5c6bb9a5c6c65c6e9aee68f72ca5a6d54219d')
 })
