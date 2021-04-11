@@ -6,17 +6,19 @@ const { setupLog } = require('./debug')
 const debug = require('debug')('app')
 const Interface = require('./interface/interface')
 const Store = require('./store/store')
-const { OSNotSupported } = require('./error')
+const { OSNotSupported, MissingNetworkArg } = require('./error')
 const doubleHash = require('./utils/doubleHash')
 
 const fs = require('fs')
 const path = require('path')
 const process = require('process')
 
+const { SATOSHIS, MIN_FEE } = require('./constants')
+
 // TODO: app args should be the app settings
 async function app (args) {
   if (typeof args.network !== 'string') {
-    throw new Error('`network` argument is required.')
+    throw new MissingNetworkArg()
   }
 
   // Only support 'linux' for now
@@ -51,7 +53,9 @@ async function app (args) {
 
   // Will be needed in the interface
   const sendTransaction = async (amount, address) => {
-    const rawTransaction = await wallet.send(amount, address)
+    // TODO: calculate fee properly
+    const fee = MIN_FEE * SATOSHIS
+    const rawTransaction = await wallet.send(amount, address, fee)
     spvnode.sendRawTransaction(rawTransaction)
     debug('SENT !')
     const newBalance = await wallet.getBalance()
