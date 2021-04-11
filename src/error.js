@@ -12,7 +12,23 @@ class MissingNetworkArg extends Error {
   }
 }
 
+class MainnetNotSupported extends Error {
+  constructor () {
+    super('`mainnet` network supported.')
+    this.name = 'MainnetNotSupported'
+  }
+}
+
+class UnknownNetwork extends Error {
+  constructor () {
+    super('Unknown network. Please pass oe of this value : `regtest`, `testnet` or `mainnet`.')
+    this.name = 'UnknownNetwork'
+  }
+}
+
 module.exports = {
   OSNotSupported,
-  MissingNetworkArg
+  MissingNetworkArg,
+  MainnetNotSupported,
+  UnknownNetwork
 }

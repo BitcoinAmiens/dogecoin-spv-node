@@ -13,9 +13,17 @@ const debug = require('debug')('wallet')
 const fs = require('fs')
 const path = require('path')
 const EventEmitter = require('events')
-const level = require('level')
 
-const { pubkeyToAddress, pubkeyToPubkeyHash, prepareTransactionToSign } = require('./utils')
+const WalletDB = require('./db')
+
+const {
+  pubkeyToAddress,
+  pubkeyToPubkeyHash,
+  prepareTransactionToSign,
+  indexToBufferInt32LE,
+  serializePayToPubkeyHashScript
+} = require('./utils')
+
 const { MissingSeedError } = require('./errors')
 
 // HD wallet for dogecoin
@@ -28,8 +36,10 @@ class Wallet extends EventEmitter {
     this.pubkeyHashes = new Map()
     this.pendingTxIns = new Map()
     this.pendingTxOuts = new Map()
-    this.unspentOutputs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'unspent'), { valueEncoding: 'json' })
-    this.txs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'tx'), { valueEncoding: 'json' })
+    this.db = new WalletDB(this.settings.DATA_FOLDER)
+    //this.unspentOutputs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'unspent'), { valueEncoding: 'json' })
+    //this.txs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'tx'), { valueEncoding: 'json' })
+
 
     this.seed_file = path.join(this.settings.DATA_FOLDER, 'seed.json')
 
@@ -98,26 +108,22 @@ class Wallet extends EventEmitter {
 
   async getBalance () {
     let balance = BigInt(0)
-    return await new Promise((resolve, reject) => {
-      this.unspentOutputs.createReadStream()
-        .on('data', (data) => {
-          if (this.pendingTxIns.has(data.key.slice(0, -8))) {
-            // dont count pending transaction in balance
-            return
-          }
 
-          balance += BigInt(data.value.value)
-        })
-        .on('error', function (err) { reject(err) })
-        .on('end', () => {
-          // Adding pending tx out for more accurate balance
-          this.pendingTxOuts.forEach((txout) => {
-            balance += txout.value
-          })
+    const unspentTxOutputs = await this.db.getAllUnspentTxOutputs()
+    unspentTxOutputs.forEach((utxo) => {
+      if (this.pendingTxIns.has(utxo.key.slice(0, -8))) {
+        // dont count pending transaction in balance
+        return
+      }
 
-          resolve(balance)
-        })
+      balance += BigInt(data.value.value)
     })
+    // Adding pending tx out for more accurate balance
+		this.pendingTxOuts.forEach((txout) => {
+			balance += txout.value
+		})
+
+    return balance
   }
 
   getAddress () {
@@ -144,51 +150,35 @@ class Wallet extends EventEmitter {
       this.pendingTxOuts.delete(tx.id)
     }
 
-    // Whatever happened we save it even if it is not yours
-    // It will be needed for filter (keeps same filter as nodes)
-    // REVIEW: Not sure this is true and slow down the process
-    /* this.txs.put(tx.id, tx, (err) => {
-      if (err) { throw err }
-    }) */
-
     // Look for input which use our unspent output
-    tx.txIns.forEach((txIn) => {
+    tx.txIns.forEach( async (txIn) => {
       const previousOutput = txIn.previousOutput.hash + txIn.previousOutput.index
       // If coinbase txIn we don't care
       if (txIn.previousOutput.hash === '0000000000000000000000000000000000000000000000000000000000000000') {
         return
       }
 
-      // Should be hash and id ?
-      this.unspentOutputs.get(previousOutput, (err, value) => {
-        if (err && err.type !== 'NotFoundError') throw err
-        if (err && err.type === 'NotFoundError') return
+      const utxo = await this.db.getUnspentOutput(previousOutput)
 
-        if (value) {
-          // remove the transaction from unspent transaction list
-          this.unspentOutputs.del(previousOutput, (err) => {
-            if (err) throw err
-
-            // remove from pending tx
-            if (this.pendingTxIns.has(txIn.previousOutput.hash)) {
-              this.pendingTxIns.delete(txIn.previousOutput.hash)
-            }
-
-            // TODO: cache balance
-            this.emit('balance')
-          })
+      if (utxo) {
+        // remove the transaction from unspent transaction list
+        await this.db.delUnspentOutput(previousOutput)
+        // remove from pending tx
+        if (this.pendingTxIns.has(txIn.previousOutput.hash)) {
+          this.pendingTxIns.delete(txIn.previousOutput.hash)
         }
-      })
+
+        this.emit('balance')
+      }
     })
 
-    // And we actually need txOuts records not txs
-    // Do we actually want to do that bit here ? Might be interesting to have it in the main app
-    // because in the future we want to decouple spvnode and wallet.
-    tx.txOuts.forEach((txOut, index) => {
-      // We should have a switch here
-      const firstByte = txOut.pkScript.slice(0, 1).toString('hex')
+    // Decode pkScript and determine what kind of script it is
+    tx.txOuts.forEach(async (txOut, index) => {
       let address
 
+      const firstByte = txOut.pkScript.slice(0, 1).toString('hex')
+
+      // TODO: utils function that return script type and its info
       switch (firstByte) {
         case '21':
           // public key !
@@ -212,24 +202,24 @@ class Wallet extends EventEmitter {
         return
       }
 
-      const indexBuffer = Buffer.allocUnsafe(4)
-      indexBuffer.writeInt32LE(index, 0)
+      const indexBuffer = indexToBufferInt32LE(index)
 
       const output = tx.id + indexBuffer.toString('hex')
 
       debug(`New tx : ${output}`)
 
-      // Save full tx in 'txs'
-      this.txs.put(output, tx, (err) => {
-        if (err) throw err
+      await this.db.putTx(output, tx)
 
-        // save only the unspent output in 'unspent'
-        this.unspentOutputs.put(output, { txid: tx.id, vout: tx.txOuts.indexOf(txOut), value: txOut.value }, (err) => {
-          if (err) throw err
+      const utxo =  {
+        txid: tx.id,
+        vout: tx.txOuts.indexOf(txOut),
+        value: txOut.value
+      }
 
-          this.emit('balance')
-        })
-      })
+      // save only the unspent output in 'unspent'
+      await this.db.putUnspentOutput(output, utxo)
+
+      this.emit('balance')
     })
   }
 
@@ -267,9 +257,7 @@ class Wallet extends EventEmitter {
         break
       }
     }
-    if (!changeAddress) {
-      changeAddress = this.generateChangeAddress()
-    }
+
 
     const transaction = {
       version: 1,
@@ -296,7 +284,7 @@ class Wallet extends EventEmitter {
     while (total < amount && !stop) {
       // TODO: clean! Have a proper function for that
       const value = await new Promise((resolve, reject) => {
-        unspentOuputsIterator.next((err, key, value) => {
+        unspentOuputsIterator.next(async (err, key, value) => {
           if (err) { reject(err) }
 
           if (typeof value === 'undefined' && typeof key === 'undefined') {
@@ -306,22 +294,20 @@ class Wallet extends EventEmitter {
             return
           }
 
-          this.txs.get(key)
-            .then((data) => {
-              const txin = {
-                previousOutput: { hash: value.txid, index: value.vout },
-                // Temporary just so we can sign it (https://bitcoin.stackexchange.com/questions/32628/redeeming-a-raw-transaction-step-by-step-example-required/32695#32695)
-                signature: Buffer.from(data.txOuts[value.vout].pkScript.data, 'hex'),
-                sequence: 4294967294
-              }
-              transaction.txIns.push(txin)
+          const data = await this.txs.get(key)
+          const txin = {
+            previousOutput: { hash: value.txid, index: value.vout },
+            // Temporary just so we can sign it (https://bitcoin.stackexchange.com/questions/32628/redeeming-a-raw-transaction-step-by-step-example-required/32695#32695)
+            signature: Buffer.from(data.txOuts[value.vout].pkScript.data, 'hex'),
+            sequence: 4294967294
+          }
+          transaction.txIns.push(txin)
 
-              transaction.txInCount = transaction.txIns.length
+          transaction.txInCount = transaction.txIns.length
 
-              this.pendingTxIns.set(value.txid, txin)
+          this.pendingTxIns.set(value.txid, txin)
 
-              resolve(value)
-            })
+          resolve(value)
         })
       })
 
@@ -338,9 +324,7 @@ class Wallet extends EventEmitter {
       })
     })
 
-    // This need to be improved !
-    let test = bs58check.decode(to).slice(1)
-    let pkScript = Buffer.from('76a914' + test.toString('hex') + '88ac', 'hex')
+    let pkScript = serializePayToPubkeyHashScript(to)
 
     transaction.txOuts[0] = {
       value: amount,
@@ -348,10 +332,14 @@ class Wallet extends EventEmitter {
       pkScript
     }
 
-    test = bs58check.decode(changeAddress).slice(1)
-    pkScript = Buffer.from('76a914' + test.toString('hex') + '88ac', 'hex')
-
+    // If we have some change that need to be sent back
     if (total > amount) {
+      if (!changeAddress) {
+        changeAddress = this.generateChangeAddress()
+      }
+
+      pkScript = serializePayToPubkeyHashScript(changeAddress)
+
       transaction.txOuts[1] = {
         value: total - amount - fee,
         pkScriptSize: pkScript.length,

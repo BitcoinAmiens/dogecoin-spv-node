@@ -1,6 +1,7 @@
 const constants = require('./constants').constants
 const networks = require('./network')
 const path = require('path')
+const { MainnetNotSupported, UnknownNetwork } =require('./error')
 
 function getSettings (network, dev) {
   let settings
@@ -12,9 +13,10 @@ function getSettings (network, dev) {
     case networks.TESTNET:
       settings = constants.testnet
       break
+    case networks.MAINNET:
+      throw new MainnetNotSupported()
     default:
-      // should be mainnet but now throw error
-      throw new Error('This a beta version. Mainnet not supported.')
+      throw new UnknownNetwork()
   }
 
   if (dev) {

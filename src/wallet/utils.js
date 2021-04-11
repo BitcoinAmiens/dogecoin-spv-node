@@ -92,8 +92,22 @@ function prepareTransactionToSign (transaction, vint) {
   return buffer
 }
 
+function indexToBufferInt32LE (index) {
+  const indexBuffer = Buffer.allocUnsafe(4)
+  indexBuffer.writeInt32LE(index, 0)
+
+  return indexBuffer
+}
+
+function serializePayToPubkeyHashScript (address) {
+    address = bs58check.decode(address).slice(1)
+    return Buffer.from('76a914' + address.toString('hex') + '88ac', 'hex')
+}
+
 module.exports = {
   pubkeyToPubkeyHash,
   pubkeyToAddress,
-  prepareTransactionToSign
+  prepareTransactionToSign,
+  indexToBufferInt32LE,
+  serializePayToPubkeyHashScript
 }
