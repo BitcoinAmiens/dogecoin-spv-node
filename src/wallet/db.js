@@ -1,4 +1,5 @@
 const level = require('level')
+const path = require('path')
 
 class WalletDB {
   constructor (data_folder) {

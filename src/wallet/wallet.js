@@ -37,9 +37,6 @@ class Wallet extends EventEmitter {
     this.pendingTxIns = new Map()
     this.pendingTxOuts = new Map()
     this.db = new WalletDB(this.settings.DATA_FOLDER)
-    //this.unspentOutputs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'unspent'), { valueEncoding: 'json' })
-    //this.txs = level(path.join(this.settings.DATA_FOLDER, 'wallet', 'tx'), { valueEncoding: 'json' })
-
 
     this.seed_file = path.join(this.settings.DATA_FOLDER, 'seed.json')
 
@@ -110,18 +107,18 @@ class Wallet extends EventEmitter {
     let balance = BigInt(0)
 
     const unspentTxOutputs = await this.db.getAllUnspentTxOutputs()
-    unspentTxOutputs.forEach((utxo) => {
-      if (this.pendingTxIns.has(utxo.key.slice(0, -8))) {
-        // dont count pending transaction in balance
-        return
+    
+    for (const utxo of unspentTxOutputs) {
+      // dont count pending transaction in balance
+      if (!this.pendingTxIns.has(utxo.key.slice(0, -8))) {
+        balance += BigInt(utxo.value.value)
       }
+    }
 
-      balance += BigInt(data.value.value)
-    })
     // Adding pending tx out for more accurate balance
-		this.pendingTxOuts.forEach((txout) => {
+    for (const txout of this.pendingTxOuts) {
 			balance += txout.value
-		})
+    }
 
     return balance
   }
@@ -139,8 +136,7 @@ class Wallet extends EventEmitter {
     return pubkeyToAddress(Buffer.from(pk, 'hex'), this.settings.NETWORK_BYTE)
   }
 
-  // TODO: need to be async!
-  addTxToWallet (tx) {
+  async addTxToWallet (tx) {
     // prepare BigInt conversion to string so we can save to db
     for (const i in tx.txOuts) {
       tx.txOuts[i].value = tx.txOuts[i].value.toString()
@@ -151,7 +147,7 @@ class Wallet extends EventEmitter {
     }
 
     // Look for input which use our unspent output
-    tx.txIns.forEach( async (txIn) => {
+    for (const txIn of tx.txIns) {
       const previousOutput = txIn.previousOutput.hash + txIn.previousOutput.index
       // If coinbase txIn we don't care
       if (txIn.previousOutput.hash === '0000000000000000000000000000000000000000000000000000000000000000') {
@@ -170,10 +166,11 @@ class Wallet extends EventEmitter {
 
         this.emit('balance')
       }
-    })
+    }
 
     // Decode pkScript and determine what kind of script it is
-    tx.txOuts.forEach(async (txOut, index) => {
+    for (const index in tx.txOuts) {
+      const txOut = tx.txOuts[index]
       let address
 
       const firstByte = txOut.pkScript.slice(0, 1).toString('hex')
@@ -220,7 +217,7 @@ class Wallet extends EventEmitter {
       await this.db.putUnspentOutput(output, utxo)
 
       this.emit('balance')
-    })
+    }
   }
 
   generateNewAddress (changeAddress = false) {
@@ -258,7 +255,6 @@ class Wallet extends EventEmitter {
       }
     }
 
-
     const transaction = {
       version: 1,
       txInCount: 0,
@@ -278,7 +274,7 @@ class Wallet extends EventEmitter {
       throw new Error('Not enought funds')
     }
 
-    const unspentOuputsIterator = this.unspentOutputs.iterator()
+    const unspentOuputsIterator = this.db.unspentOutputs.iterator()
     let stop = false
 
     while (total < amount && !stop) {
@@ -294,7 +290,7 @@ class Wallet extends EventEmitter {
             return
           }
 
-          const data = await this.txs.get(key)
+          const data = await this.db.getTx(key)
           const txin = {
             previousOutput: { hash: value.txid, index: value.vout },
             // Temporary just so we can sign it (https://bitcoin.stackexchange.com/questions/32628/redeeming-a-raw-transaction-step-by-step-example-required/32695#32695)
