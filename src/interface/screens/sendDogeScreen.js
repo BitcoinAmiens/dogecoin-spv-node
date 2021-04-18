@@ -55,11 +55,10 @@ class SendDogeScreen extends Screen {
         this.pasteAddress()
         break
       case KEYS.ENTER:
-        let amount = this.amount
-        if (amount === '_') {
-          amount = '0'
+        if (this.amount === '_') {
+          this.amount = '0'
         }
-        this._sendDogecoin(BigInt(amount) * SATOSHIS, this.address)
+        this._sendDogecoin(BigInt(this.amount) * SATOSHIS, this.address)
         break
       default:
         return this.modifyInputsField(key)
