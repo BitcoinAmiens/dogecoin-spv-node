@@ -1,5 +1,5 @@
 const CompactSize = require('../utils/compactSize')
-const doubleHash = require('../utils/doubleHash')
+const decodeHeader = require('../utils/decodeHeader')
 
 function decodeHeadersMessage (payload) {
   const headers = {}
@@ -13,31 +13,8 @@ function decodeHeadersMessage (payload) {
   headers.headers = []
 
   for (let i = 0; i < headers.count; i++) {
-    const header = {}
-
-    header.version = payload.readInt32LE(offset)
-    offset += 4
-
-    header.previousHash = payload.slice(offset, offset + 32).toString('hex')
-    offset += 32
-
-    if (header.previousHash === '0000000000000000000000000000000000000000000000000000000000000000') {
-      throw Error('PREVIOUS HASH SHOULD NOT BE NULL')
-    }
-
-    header.merklerootHash = payload.slice(offset, offset + 32).toString('hex')
-    offset += 32
-
-    header.time = payload.readUInt32LE(offset)
-    offset += 4
-
-    header.nBits = payload.slice(offset, offset + 4).toString('hex')
-    offset += 4
-
-    header.nonce = payload.readUInt32LE(offset)
-    offset += 4
-
-    header.hash = doubleHash(payload.slice(offset - 80, offset)).toString('hex')
+    const header = decodeHeader(payload.slice(offset, offset + 80))
+    offset += 80
 
     // Should be always 0x00
     // https://bitcoin.org/en/developer-reference#headers

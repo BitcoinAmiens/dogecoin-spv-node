@@ -1,11 +1,12 @@
 const CompactSize = require('../utils/compactSize')
+const decodeHeader = require('../utils/decodeHeader')
 const { decodeTxMessage } = require('./tx')
 
 function decodeBlockMessage (payload) {
   const block = {}
   let offset = 0
 
-  block.blockHeader = payload.slice(offset, offset + 80).toString('hex')
+  block.blockHeader = decodeHeader(payload.slice(offset, offset + 80))
   offset += 80
 
   const compactSize = CompactSize.fromBuffer(payload, offset)

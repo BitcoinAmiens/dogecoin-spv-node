@@ -34,7 +34,7 @@ test.before(t => {
 
 test.after(t => {
     // Clean after
-    fs.rmdirSync(path.join(__dirname, 'data'), {recursive: true})
+    fs.rmSync(path.join(__dirname, 'data'), {recursive: true})
 })
 
 test.serial('should generate a new address', t => {
