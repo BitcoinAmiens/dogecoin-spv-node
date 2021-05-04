@@ -1,7 +1,6 @@
 const bip39 = require('bip39')
 const bip32 = require('bip32')
 const { encodeRawTransaction } = require('../commands/tx')
-const bs58check = require('bs58check')
 const doubleHash = require('../utils/doubleHash')
 const { getAddressFromScript } = require('../utils/script')
 const CompactSize = require('../utils/compactSize')
@@ -107,7 +106,7 @@ class Wallet extends EventEmitter {
     let balance = BigInt(0)
 
     const unspentTxOutputs = await this.db.getAllUnspentTxOutputs()
-    
+
     for (const utxo of unspentTxOutputs) {
       // dont count pending transaction in balance
       if (!this.pendingTxIns.has(utxo.key.slice(0, -8))) {
@@ -117,7 +116,7 @@ class Wallet extends EventEmitter {
 
     // Adding pending tx out for more accurate balance
     for (const txout of this.pendingTxOuts) {
-			balance += txout.value
+      balance += txout.value
     }
 
     return balance
@@ -207,7 +206,7 @@ class Wallet extends EventEmitter {
 
       await this.db.putTx(output, tx)
 
-      const utxo =  {
+      const utxo = {
         txid: tx.id,
         vout: tx.txOuts.indexOf(txOut),
         value: txOut.value
@@ -246,39 +245,13 @@ class Wallet extends EventEmitter {
     return child
   }
 
-  async send (amount, to, fee) {
-    let changeAddress
-    for (const [key, value] of this.pubkeys.entries()) {
-      if (value.changeAddress && !value.used) {
-        changeAddress = pubkeyToAddress(Buffer.from(key, 'hex'), this.settings.NETWORK_BYTE)
-        break
-      }
-    }
-
-    const transaction = {
-      version: 1,
-      txInCount: 0,
-      txIns: [],
-      txOutCount: 2,
-      txOuts: [],
-      locktime: 0,
-      hashCodeType: 1
-    }
-
-    let total = BigInt(0)
-
-    const balance = await this.getBalance()
-
-    if (balance < amount) {
-      debug('Not enought funds!')
-      throw new Error('Not enought funds')
-    }
-
+  async _collectInputsForAmount (amount) {
     const unspentOuputsIterator = this.db.unspentOutputs.iterator()
     let stop = false
+    let total = BigInt(0)
+    const txIns = []
 
     while (total < amount && !stop) {
-      // TODO: clean! Have a proper function for that
       const value = await new Promise((resolve, reject) => {
         unspentOuputsIterator.next(async (err, key, value) => {
           if (err) { reject(err) }
@@ -297,9 +270,7 @@ class Wallet extends EventEmitter {
             signature: Buffer.from(data.txOuts[value.vout].pkScript.data, 'hex'),
             sequence: 4294967294
           }
-          transaction.txIns.push(txin)
-
-          transaction.txInCount = transaction.txIns.length
+          txIns.push(txin)
 
           this.pendingTxIns.set(value.txid, txin)
 
@@ -319,6 +290,40 @@ class Wallet extends EventEmitter {
         resolve()
       })
     })
+
+    return { txIns, total }
+  }
+
+  async send (amount, to, fee) {
+    let changeAddress
+    for (const [key, value] of this.pubkeys.entries()) {
+      if (value.changeAddress && !value.used) {
+        changeAddress = pubkeyToAddress(Buffer.from(key, 'hex'), this.settings.NETWORK_BYTE)
+        break
+      }
+    }
+
+    const transaction = {
+      version: 1,
+      txInCount: 0,
+      txIns: [],
+      txOutCount: 2,
+      txOuts: [],
+      locktime: 0,
+      hashCodeType: 1
+    }
+
+    const balance = await this.getBalance()
+
+    if (balance < amount) {
+      debug('Not enought funds!')
+      throw new Error('Not enought funds')
+    }
+
+    const { txIns, total } = await this._collectInputsForAmount(amount)
+
+    transaction.txIns = txIns
+    transaction.txInCount = txIns.length
 
     let pkScript = serializePayToPubkeyHashScript(to)
 

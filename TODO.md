@@ -27,3 +27,4 @@
 - [ ] Submit spv node directory files path as constructor argument
 - [ ] Make it easier to add new screen in Interface
 - [ ] Writing on the terminal screen should only be happening in Interface.
+- [ ] Craeate an executable (using pkg)
