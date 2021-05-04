@@ -150,7 +150,7 @@ class SPVNode extends EventEmitter {
     const peer = this.peers[rand]
 
     if (!peer) {
-      debug("WTF")
+      debug('WTF')
     }
 
     peer.sendGetHeader(hashes)
