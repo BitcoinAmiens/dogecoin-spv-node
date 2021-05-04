@@ -100,8 +100,8 @@ function indexToBufferInt32LE (index) {
 }
 
 function serializePayToPubkeyHashScript (address) {
-    address = bs58check.decode(address).slice(1)
-    return Buffer.from('76a914' + address.toString('hex') + '88ac', 'hex')
+  address = bs58check.decode(address).slice(1)
+  return Buffer.from('76a914' + address.toString('hex') + '88ac', 'hex')
 }
 
 module.exports = {

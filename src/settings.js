@@ -1,7 +1,7 @@
 const constants = require('./constants').constants
 const networks = require('./network')
 const path = require('path')
-const { MainnetNotSupported, UnknownNetwork } =require('./error')
+const { MainnetNotSupported, UnknownNetwork } = require('./error')
 
 function getSettings (network, dev) {
   let settings
