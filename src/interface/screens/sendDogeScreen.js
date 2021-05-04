@@ -55,6 +55,9 @@ class SendDogeScreen extends Screen {
         this.pasteAddress()
         break
       case KEYS.ENTER:
+        if (this.amount === '_') {
+          this.amount = '0'
+        }
         this._sendDogecoin(BigInt(this.amount) * SATOSHIS, this.address)
         break
       default:
@@ -82,7 +85,7 @@ class SendDogeScreen extends Screen {
     } else {
       if (key in ['\u0030', '\u0031', '\u0032', '\u0033', '\u0034', '\u0035', '\u0036', '\u0037', '\u0038', '\u0039']) {
         // If not a number someone is drunk
-        if (this.amount === '_') {
+        if (this.amount === '_' || this.amount === '0') {
           amount = key
         } else {
           amount = this.amount + key
