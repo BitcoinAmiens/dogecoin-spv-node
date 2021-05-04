@@ -229,7 +229,7 @@ class Peer extends EventEmitter {
           this._handleMerkleblock(msg.payload)
           break
         case 'tx':
-          this._updateTxs(msg.payload)
+          this._updateTx(msg.payload)
           break
         case 'addr':
           this._handleAddrMessage(msg.payload)
@@ -253,9 +253,9 @@ class Peer extends EventEmitter {
     await this.socket.write(pongMessage)
   }
 
-  _updateTxs (txPayload) {
+  _updateTx (txPayload) {
     const txMessage = tx.decodeTxMessage(txPayload)
-    this.node.updateTxs(txMessage)
+    this.node.updateTx(txMessage)
   }
 
   async _updateHeaders (headersPayload) {
