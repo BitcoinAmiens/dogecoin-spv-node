@@ -47,9 +47,9 @@ class Peer extends EventEmitter {
     this.socket.on('timeout', this._onTimeOut.bind(this))
   }
 
-  /*********************
+  /*
       Public Methods
-  **********************/
+                      */
 
   connect () {
     return new Promise((resolve, reject) => {
@@ -153,9 +153,9 @@ class Peer extends EventEmitter {
     await this.socket.write(txMessage)
   }
 
-  /*********************
+  /*
       Private Methods
-  **********************/
+                        */
 
   _onError (error) {
     // TODO: register as not working node...
@@ -174,7 +174,7 @@ class Peer extends EventEmitter {
     this.node.removePeer(this)
   }
 
-  _onClose (response) {
+  async _onClose (response) {
     debug(`Connection closed ${this.ip}`)
     this.emit('closed')
     this.socket = null
@@ -226,7 +226,7 @@ class Peer extends EventEmitter {
           this._handleBlock(msg.payload)
           break
         case 'merkleblock':
-          this._handleMerkleblock(msg.payload)
+          await this._handleMerkleblock(msg.payload)
           break
         case 'tx':
           this._updateTx(msg.payload)
@@ -375,7 +375,7 @@ class Peer extends EventEmitter {
 
   _handleMerkleblock (merkleblockPayload) {
     const merkleblockMessage = merkleblock.decodeMerkleblockMessage(merkleblockPayload)
-    this.node.updateMerkleBlock(merkleblockMessage)
+    return this.node.updateMerkleBlock(merkleblockMessage)
   }
 
   _handleBlock (blockPayload) {

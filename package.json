@@ -29,6 +29,7 @@
   "ava": {
     "verbose": true,
     "files": [
+      "test/integration/*.test.js",
       "test/unit/*.test.js"
     ]
   },
@@ -45,6 +46,7 @@
   ],
   "devDependencies": {
     "ava": "^3.12.1",
+    "dockerode": "^3.3.0",
     "nodemon": "^1.14.8",
     "nyc": "^15.1.0",
     "standard": "^16.0.3"

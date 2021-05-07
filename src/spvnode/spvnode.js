@@ -132,6 +132,10 @@ class SPVNode extends EventEmitter {
 
   synchronize () {
     debug('==== Starting synchronizing ====')
+    this.sendGetHeaders()
+  }
+
+  sendGetHeaders () {
     let hashes = [...this.tips.keys()]
 
     if (this.tips.size === 0) { hashes = [this.hash] }
@@ -144,14 +148,11 @@ class SPVNode extends EventEmitter {
   _sendGetHeaders (hashes) {
     if (this.peers.length <= 0) {
       debug('No peers.')
+      return
     }
     // Choose a random peer to getHeaders
     const rand = Math.floor(Math.random() * this.peers.length)
     const peer = this.peers[rand]
-
-    if (!peer) {
-      debug('WTF')
-    }
 
     peer.sendGetHeader(hashes)
   }
@@ -509,7 +510,7 @@ class SPVNode extends EventEmitter {
       debug(`Slice Peer : ${peer.ip} (${indexPeer})`)
       debug(`Querying : ${peer.queried}`)
       this.peers.splice(indexPeer, 1)
-      if (peer.queried) { this.synchronize() }
+      if (peer.queried) { this.sendGetHeaders() }
       this.emit('newState', this._getCurrentState())
     }
   }
