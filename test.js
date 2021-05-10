@@ -6,7 +6,7 @@ async function main () {
   const container = docker.run('dogecoind', null, undefined, {
     name: 'dogecoind_regtest',
     HostConfig: {
-      PortBindings: {'18444/tcp': [{ HostPort: '18444' }]},
+      PortBindings: { '18444/tcp': [{ HostPort: '18444' }] },
       NetworkMode: 'host'
     }
   })
