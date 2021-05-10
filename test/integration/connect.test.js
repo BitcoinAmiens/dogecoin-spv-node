@@ -14,6 +14,9 @@ test.before(async t => {
   let data = fs.readFileSync(path.join(TEST_VECTORS_DIR, 'pubkeyshash.json'), { encoding: 'utf-8' })
   let pubkeyshash =  JSON.parse(data)
   
+  // Test data folder
+  settings.DATA_FOLDER = path.join(__dirname, 'data')
+
   // setup files
   let settings = getSettings(networks.REGTEST)
   var spvnode = new SPVNode(pubkeyshash, settings)
