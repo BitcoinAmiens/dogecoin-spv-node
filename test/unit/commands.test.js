@@ -29,7 +29,7 @@ test('successfully decode `block` payload', t => {
   
   let result = decodeBlockMessage(Buffer.from(data.hex, 'hex'))
   
-  t.is(result.blockHeader, data.value.blockHeader)
+  t.deepEqual(result.blockHeader, data.value.blockHeader)
   t.is(result.txnCount, data.value.txnCount)
 })
 

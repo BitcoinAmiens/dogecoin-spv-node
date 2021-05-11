@@ -29,6 +29,7 @@
   "ava": {
     "verbose": true,
     "files": [
+      "test/integration/*.test.js",
       "test/unit/*.test.js"
     ]
   },
@@ -45,13 +46,14 @@
   ],
   "devDependencies": {
     "ava": "^3.12.1",
+    "dockerode": "^3.3.0",
     "nodemon": "^1.14.8",
     "nyc": "^15.1.0",
     "standard": "^16.0.3"
   },
   "dependencies": {
     "bip32": "^2.0.3",
-    "bip39": "git+https://github.com/bitcoinjs/bip39.git",
+    "bip39": "^3.0.4",
     "bitcoin-merkle-proof": "^0.1.0",
     "bloom-filter": "^0.2.0",
     "bs58": "^4.0.1",

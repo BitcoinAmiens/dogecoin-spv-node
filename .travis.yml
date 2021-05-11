@@ -1,7 +1,13 @@
 language: node_js
 node_js:
-  - lts/*
-  
+  - "16"
+
+services:
+  - docker
+
+before_script:
+  - docker build --network=host -t dogecoind provision/dogecoind/
+
 script:
   - npm run lint
   - npm test

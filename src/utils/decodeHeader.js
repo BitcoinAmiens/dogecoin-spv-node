@@ -10,12 +10,6 @@ function decodeHeader (payload) {
   header.previousHash = payload.slice(offset, offset + 32).toString('hex')
   offset += 32
 
-  if (header.previousHash === '0000000000000000000000000000000000000000000000000000000000000000') {
-    // fs.writeFileSync('test/headers/data3.json', JSON.stringify(data))
-
-    throw Error('PREVIOUS HASH SHOULD NOT BE NULL')
-  }
-
   header.merklerootHash = payload.slice(offset, offset + 32).toString('hex')
   offset += 32
 
