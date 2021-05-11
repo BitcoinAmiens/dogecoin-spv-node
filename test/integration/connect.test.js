@@ -16,17 +16,17 @@ test.before(async t => {
 
   // setup files
   let settings = getSettings(networks.REGTEST)
-  var spvnode = new SPVNode(pubkeyshash, settings)
 
   // Test data folder
   settings.DATA_FOLDER = path.join(__dirname, 'data')
   console.log(settings.DATA_FOLDER)
 
-
   if (!fs.existsSync(settings.DATA_FOLDER)) {
     fs.mkdirSync(settings.DATA_FOLDER, {recursive: true})
     fs.mkdirSync(path.join(settings.DATA_FOLDER, 'spvnode'))
   }
+
+  var spvnode = new SPVNode(pubkeyshash, settings)
 
   // Start Dogecoin docker node
   const docker = new Docker()
