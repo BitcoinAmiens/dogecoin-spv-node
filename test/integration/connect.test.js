@@ -19,7 +19,6 @@ test.before(async t => {
 
   // Test data folder
   settings.DATA_FOLDER = path.join(__dirname, 'data')
-  console.log(settings.DATA_FOLDER)
 
   if (!fs.existsSync(settings.DATA_FOLDER)) {
     fs.mkdirSync(settings.DATA_FOLDER, {recursive: true})
