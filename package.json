@@ -16,11 +16,18 @@
     "clean": "rm -rf data",
     "test": "NETWORK=testnet nyc ava",
     "generate": "node test/tools/generate.js",
-    "lint": "standard"
+    "lint": "standard",
+    "pkg": "pkg ."
   },
   "nodemonConfig": {
     "ignore": [
       "test/*"
+    ]
+  },
+  "pkg": {
+    "outputPath": "dist",
+    "targets": [
+      "node16-linux-x64"
     ]
   },
   "bin": {
@@ -46,9 +53,11 @@
   ],
   "devDependencies": {
     "ava": "^3.12.1",
+    "caxa": "^1.0.0",
     "dockerode": "^3.3.0",
     "nodemon": "^1.14.8",
     "nyc": "^15.1.0",
+    "pkg": "^5.1.0",
     "standard": "^16.0.3"
   },
   "dependencies": {
@@ -62,7 +71,7 @@
     "debug": "^4.1.1",
     "ecdsa": "^0.7.0",
     "exp-net": "0.0.1",
-    "level": "^6.0.0",
+    "level": "^7.0.0",
     "meow": "^6.1.0",
     "multicast-dns": "^7.0.0",
     "ripemd160": "^2.0.1",

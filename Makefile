@@ -1,4 +1,4 @@
-build:
+build-regtest:
 	docker build --network=host -t dogecoind provision/dogecoind/
 
 regtest:
@@ -12,3 +12,7 @@ generate:
 	
 clean-regtest:
 	rm -rf data/regtest
+
+package:
+	npm run pkg
+	cp -r node_modules/leveldown/prebuilds dist/
