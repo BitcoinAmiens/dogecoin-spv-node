@@ -6,7 +6,7 @@ const { setupLog } = require('./debug')
 const debug = require('debug')('app')
 const Interface = require('./interface/interface')
 const Store = require('./store/store')
-const { OSNotSupported, MissingNetworkArg } = require('./error')
+const { MissingNetworkArg } = require('./error')
 const doubleHash = require('./utils/doubleHash')
 
 const fs = require('fs')
