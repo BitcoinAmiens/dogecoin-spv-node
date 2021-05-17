@@ -21,11 +21,6 @@ async function app (args) {
     throw new MissingNetworkArg()
   }
 
-  // Only support 'linux' for now
-  if (!args.dev && process.platform !== 'linux') {
-    throw new OSNotSupported(process.platform)
-  }
-
   const settings = getSettings(args.network, args.dev)
   // Redirect output stream to log file
   setupLog()
