@@ -107,6 +107,7 @@ class SendDogeScreen extends Screen {
       })
     } catch (err) {
       process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines - 1), () => {
+        debug(err)
         this.update(`Fail to send : ${err.message}`, '')
       })
     }

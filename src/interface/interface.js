@@ -115,11 +115,12 @@ class Interface extends EventEmitter {
   }
 
   displayNewAddressScreen () {
-    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines - 1), () => {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines - 1), async () => {
       process.stdout.write(terminalStyle.CLEAR)
 
       // Update screen
-      this.screen = new NewAddressScreen({ getAddress: this.getAddress })
+      const address = await this.getAddress()
+      this.screen = new NewAddressScreen({ address })
     })
   }
 

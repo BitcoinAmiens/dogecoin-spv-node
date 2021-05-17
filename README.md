@@ -46,3 +46,7 @@ NETWORK=testnet npm start
 tail -f stdout.log
 ```
 
+## Troubleshouting
+
+### bad-txns-inputs-spent 12
+Sometime freshly collecty inputs won't work. Just wait a bit for some new blocks...

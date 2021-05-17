@@ -2,7 +2,6 @@ const bip39 = require('bip39')
 const bip32 = require('bip32')
 const { encodeRawTransaction } = require('../commands/tx')
 const doubleHash = require('../utils/doubleHash')
-const { getAddressFromScript } = require('../utils/script')
 const CompactSize = require('../utils/compactSize')
 
 const secp256k1 = require('secp256k1')
@@ -20,10 +19,11 @@ const {
   pubkeyToPubkeyHash,
   prepareTransactionToSign,
   indexToBufferInt32LE,
-  serializePayToPubkeyHashScript
+  serializePayToPubkeyHashScript,
+  getPubkeyHashFromScript
 } = require('./utils')
 
-const { MissingSeedError } = require('./errors')
+const { MissingSeedError, NotEnoughtKeysGenerated } = require('./errors')
 
 // HD wallet for dogecoin
 class Wallet extends EventEmitter {
@@ -31,40 +31,54 @@ class Wallet extends EventEmitter {
     super()
 
     this.settings = settings
-    this.pubkeys = new Map()
-    this.pubkeyHashes = new Map()
     this.pendingTxIns = new Map()
     this.pendingTxOuts = new Map()
     this.db = new WalletDB(this.settings.DATA_FOLDER)
 
     this.seed_file = path.join(this.settings.DATA_FOLDER, 'seed.json')
 
+    this._nextAddressIndex = 0
+    this._nextChangeAddressIndex = 0
+
     // Looking for seed file
-    try {
-      fs.accessSync(this.seed_file)
-      this._seed = this._readSeedFile()
-    } catch (err) {
-      this._seed = null
+    // if seed file not create throw an error
+    this._seed = this._readSeedFile()
+  }
+
+  async init () {
+    const pubkeys = await this.db.getAllPubkeys()
+    if (pubkeys.length === 0) {
+      for (let i = 0; i < 20; i++) {
+        // We need 20 addresses for bloom filter to protect privacy and it is a standard
+        await this.generateAddress()
+      }
+    } else {
+      if (pubkeys.length < 20) { throw new NotEnoughtKeysGenerated() }
+      // Calculate addresses index
+      let countChangeAddress = 0
+      for (const pubkey of pubkeys) {
+        debug(pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE))
+        if (pubkey.isChangeAddress) {
+          countChangeAddress = countChangeAddress + 1
+        }
+      }
+      this._nextAddressIndex = pubkeys.length - countChangeAddress
+      this._nextChangeAddressIndex = countChangeAddress
     }
   }
 
-  init () {
-    // Need to generate the 20 addresses here
-    for (let i = 0; i < 20; i++) {
-      // We need 20 addresses for bloom filter to protect privacy and it is a standard
-      this.generateAddress()
-    }
-
-    // We need so the pubkey hashes are updated
-    for (let i = 0; i < 20; i++) {
-      // We need 20 addresses for bloom filter to protect privacy and it is a standard
-      this.generateChangeAddress()
-    }
+  static createSeedFile (mnemonic, seedFile) {
+    const seed = bip39.mnemonicToSeedSync(mnemonic)
+    fs.writeFileSync(seedFile, JSON.stringify({ seed: seed.toString('hex') }), { flag: 'w' })
   }
 
-  createSeedFile (mnemonic) {
-    this._seed = bip39.mnemonicToSeedSync(mnemonic)
-    fs.writeFileSync(this.seed_file, JSON.stringify({ seed: this._seed.toString('hex') }), { flag: 'w' })
+  async getAllpubkeyHashes () {
+    const pubkeys = await this.db.getAllPubkeys()
+    const pubkeyHashes = []
+    for (const pubkey of pubkeys) {
+      pubkeyHashes.push(pubkey.hash)
+    }
+    return pubkeyHashes
   }
 
   _readSeedFile () {
@@ -77,29 +91,26 @@ class Wallet extends EventEmitter {
     return bip39.generateMnemonic()
   }
 
-  _getSeed () {
-    if (!this._seed) { this._seed = this._readSeedFile() }
-    return this._seed
-  }
-
   _getMasterPrivKey () {
     if (!this._seed) throw new MissingSeedError()
     const root = bip32.fromSeed(this._seed, this.settings.WALLET)
     return root.toBase58()
   }
 
-  _updatePubkeysState (index, publicKey, changeAddress = 0) {
-    this.pubkeys.set(publicKey.toString('hex'), { index, changeAddress, used: false })
+  async _updatePubkeysState (index, publicKey, isChangeAddress = 0) {
     const pubKeyHash = pubkeyToPubkeyHash(publicKey)
-    this.pubkeyHashes.set(pubKeyHash.toString('hex'), { publicKey, index, changeAddress })
+    await this.db.putPubkey({ hash: pubKeyHash.toString('hex'), publicKey: publicKey.toString('hex'), isChangeAddress, index, used: false })
   }
 
-  _getNextIndex (changeAddress = false) {
-    let index = 0
-    this.pubkeys.forEach(function (value) {
-      index += value.changeAddress
-    })
-    return changeAddress ? index : this.pubkeys.size - index
+  async _getNextIndex (changeAddress = false) {
+    const pubkeys = await this.db.getAllPubkeys()
+    let countChangeAddress = 0
+    for (const pubkey of pubkeys) {
+      if (pubkey.isChangeAddress) {
+        countChangeAddress = countChangeAddress + 1
+      }
+    }
+    return changeAddress ? countChangeAddress : pubkeys.length - countChangeAddress
   }
 
   async getBalance () {
@@ -116,23 +127,30 @@ class Wallet extends EventEmitter {
 
     // Adding pending tx out for more accurate balance
     for (const txout of this.pendingTxOuts) {
-      balance += txout.value
+      balance += BigInt(txout[1].value)
     }
 
     return balance
   }
 
-  getAddress () {
-    const iterator = this.pubkeys[Symbol.iterator]()
+  // Find an unused address or generate a new one
+  async getAddress () {
+    const pubkeys = await this.db.getAllPubkeys()
 
     let pk
-    for (const pubkey of iterator) {
-      if (!pubkey[1].used) {
-        pk = pubkey[0]
+    for (const pubkey of pubkeys) {
+      if (!pubkey.used) {
+        if ((pk && pubkey.index < pk.index) || !pk) {
+          pk = pubkey
+        }
       }
     }
 
-    return pubkeyToAddress(Buffer.from(pk, 'hex'), this.settings.NETWORK_BYTE)
+    if (!pk) {
+      return this.generateAddress()
+    }
+
+    return pubkeyToAddress(Buffer.from(pk.publicKey, 'hex'), this.settings.NETWORK_BYTE)
   }
 
   async addTxToWallet (tx) {
@@ -170,30 +188,15 @@ class Wallet extends EventEmitter {
     // Decode pkScript and determine what kind of script it is
     for (const index in tx.txOuts) {
       const txOut = tx.txOuts[index]
-      let address
 
-      const firstByte = txOut.pkScript.slice(0, 1).toString('hex')
-
-      // TODO: utils function that return script type and its info
-      switch (firstByte) {
-        case '21':
-          // public key !
-          address = txOut.pkScript.slice(1, 34).toString('hex')
-          break
-        case '76':
-        // public key hash !
-          address = txOut.pkScript.slice(3, 23).toString('hex')
-          break
-          // P2SH !!!newTx.txOuts
-        case 'a9':
-          // redeem script hash !
-          address = txOut.pkScript.slice(2, 22).toString('hex')
-          break
-        default:
-          debug('unknown script')
+      const pubkeyHash = getPubkeyHashFromScript(txOut.pkScript)
+      if (!pubkeyHash) {
+        debug('unknown script')
+        return
       }
 
-      if (!this.pubkeyHashes.has(address)) {
+      const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
+      if (!pubkey) {
         // Not in our wallet (false positive)
         return
       }
@@ -219,15 +222,14 @@ class Wallet extends EventEmitter {
     }
   }
 
-  generateNewAddress (changeAddress = false) {
-    const index = this._getNextIndex(changeAddress)
-    const path = this.settings.PATH + (changeAddress ? '1' : '0') + '/' + index
+  async generateNewAddress (isChangeAddress = false) {
+    const index = await this._getNextIndex(isChangeAddress)
+    const path = this.settings.PATH + (isChangeAddress ? '1' : '0') + '/' + index
     const root = bip32.fromSeed(this._seed, this.settings.WALLET)
     const child = root.derivePath(path)
-    const address = pubkeyToAddress(child.publicKey, this.settings.NETWORK_BYTE)
-    this._updatePubkeysState(index, child.publicKey, changeAddress ? 1 : 0)
+    await this._updatePubkeysState(index, child.publicKey, isChangeAddress ? 1 : 0)
 
-    return address
+    return pubkeyToAddress(child.publicKey, this.settings.NETWORK_BYTE)
   }
 
   generateAddress () {
@@ -296,11 +298,19 @@ class Wallet extends EventEmitter {
 
   async send (amount, to, fee) {
     let changeAddress
-    for (const [key, value] of this.pubkeys.entries()) {
-      if (value.changeAddress && !value.used) {
-        changeAddress = pubkeyToAddress(Buffer.from(key, 'hex'), this.settings.NETWORK_BYTE)
+    const pubkeys = await this.db.getAllPubkeys()
+
+    debug(`send! ${amount} ${fee}`)
+
+    for (const pubkey of pubkeys) {
+      if (pubkey.isChangeAddress && !pubkey.used) {
+        changeAddress = pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE)
         break
       }
+    }
+
+    if (!changeAddress) {
+      changeAddress = await this.generateChangeAddress()
     }
 
     const transaction = {
@@ -335,10 +345,6 @@ class Wallet extends EventEmitter {
 
     // If we have some change that need to be sent back
     if (total > amount) {
-      if (!changeAddress) {
-        changeAddress = this.generateChangeAddress()
-      }
-
       pkScript = serializePayToPubkeyHashScript(changeAddress)
 
       transaction.txOuts[1] = {
@@ -356,19 +362,13 @@ class Wallet extends EventEmitter {
       const rawUnsignedTransaction = prepareTransactionToSign(transaction, txInIndex)
       const rawTransactionHash = doubleHash(rawUnsignedTransaction)
 
-      // Which key ? Fuck
-      const address = getAddressFromScript(transaction.txIns[txInIndex].signature)
-      let value
+      const pubkeyHash = getPubkeyHashFromScript(transaction.txIns[txInIndex].signature)
 
       // We have pubkey hash
-      // If public key compressed it should be 33 bytes (https://bitcoin.stackexchange.com/questions/2013/why-does-the-length-of-a-bitcoin-key-vary#2014)
-      // TODO
-      if (address.length === 20) {
-        debug('PubKey Hash! Looking for index...')
-        value = this.pubkeyHashes.get(address.toString('hex'))
-      }
+      debug('PubKey Hash! Looking for index...')
+      const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
 
-      const key = this.getPrivateKey(value.index, value.changeAddress)
+      const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
 
       const signature = secp256k1.ecdsaSign(Buffer.from(rawTransactionHash, 'hex'), key.privateKey)
 
@@ -391,6 +391,7 @@ class Wallet extends EventEmitter {
       this.pendingTxOuts.set(doubleHash(rawTransaction).toString('hex'), transaction.txOuts[1])
     }
 
+    debug(rawTransaction.toString('hex'))
     return rawTransaction
   }
 }

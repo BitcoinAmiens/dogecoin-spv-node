@@ -3,8 +3,10 @@ const path = require('path')
 
 class WalletDB {
   constructor (dataFolder) {
-    this.unspentOutputs = level(path.join(dataFolder, 'wallet', 'unspent'), { valueEncoding: 'json' })
-    this.txs = level(path.join(dataFolder, 'wallet', 'tx'), { valueEncoding: 'json' })
+    const subPath = 'wallet'
+    this.unspentOutputs = level(path.join(dataFolder, subPath, 'unspent'), { valueEncoding: 'json' })
+    this.txs = level(path.join(dataFolder, subPath, 'tx'), { valueEncoding: 'json' })
+    this.pubkeys = level(path.join(dataFolder, subPath, 'pubkey'), { valueEncoding: 'json' })
   }
 
   // Get all the UTXO from the database
@@ -49,6 +51,35 @@ class WalletDB {
 
   getTx (outputID) {
     return this.txs.get(outputID)
+  }
+
+  putPubkey (pubkey) {
+    return this.pubkeys.put(pubkey.hash, pubkey)
+  }
+
+  getPubkey (pubkeyHash) {
+    return new Promise((resolve, reject) => {
+      this.pubkeys.get(pubkeyHash, function (err, value) {
+        if (err && err.type !== 'NotFoundError') { reject(err); return }
+        if (err && err.type === 'NotFoundError') { resolve(); return }
+
+        resolve(value)
+      })
+    })
+  }
+
+  // Get all the UTXO from the database
+  getAllPubkeys () {
+    const pubkeys = []
+
+    return new Promise((resolve, reject) => {
+      this.pubkeys.createReadStream()
+        .on('data', (data) => {
+          pubkeys.push(data.value)
+        })
+        .on('error', function (err) { reject(err) })
+        .on('end', function () { resolve(pubkeys) })
+    })
   }
 }
 

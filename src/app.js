@@ -31,7 +31,7 @@ async function app (args) {
   setupLog()
 
   // Create data folders for data
-  if (!fs.existsSync(settings.DATA_FOLDER)) {
+  if (!fs.existsSync(settings.DATA_FOLDER) || !fs.existsSync(path.join(settings.DATA_FOLDER, 'spvnode')) || !fs.existsSync(path.join(settings.DATA_FOLDER, 'wallet'))) {
     fs.mkdirSync(settings.DATA_FOLDER, { recursive: true })
     fs.mkdirSync(path.join(settings.DATA_FOLDER, 'spvnode'))
     fs.mkdirSync(path.join(settings.DATA_FOLDER, 'wallet'))
@@ -39,17 +39,8 @@ async function app (args) {
 
   const SEED_FILE = path.join(settings.DATA_FOLDER, 'seed.json')
 
-  // Create Wallet
-  const wallet = new Wallet(settings)
-
   // Interface Store (keep track of all the data)
   const store = new Store()
-
-  // get balance
-  wallet.getBalance()
-    .then(function (balance) {
-      store.setBalance(balance)
-    })
 
   // Will be needed in the interface
   const sendTransaction = async (amount, address) => {
@@ -64,7 +55,7 @@ async function app (args) {
   }
 
   // Will be needed in the interface
-  const getAddress = () => { return wallet.getAddress() }
+  const getAddress = async () => { return await wallet.getAddress() }
 
   // Create Interface
   const ui = new Interface({
@@ -77,8 +68,8 @@ async function app (args) {
   try {
     fs.accessSync(SEED_FILE)
   } catch (err) {
-    const mnemonic = wallet.generateMnemonic()
-    wallet.createSeedFile(mnemonic)
+    const mnemonic = Wallet.generateMnemonic()
+    Wallet.createSeedFile(mnemonic, SEED_FILE)
     ui.showMnemonicScreen(mnemonic)
     // TODO: It has to be a better way
     while (!ui.screen.continue) {
@@ -86,8 +77,16 @@ async function app (args) {
     }
   }
 
-  // We made sure we have a seed file
-  wallet.init()
+  // Create Wallet
+  const wallet = new Wallet(settings)
+  // get balance
+  wallet.getBalance()
+    .then(function (balance) {
+      store.setBalance(balance)
+    })
+
+  // Initiate wallet
+  await wallet.init()
   // show main screen
   ui.showMainScreen()
 
@@ -111,11 +110,7 @@ async function app (args) {
       })
   })
 
-  const pubkeyHashes = []
-  wallet.pubkeyHashes.forEach(function (value, key) {
-    // TODO: remove change addresses. This is not needed in the filter ?
-    pubkeyHashes.push(key.toString('hex'))
-  })
+  const pubkeyHashes = await wallet.getAllpubkeyHashes()
 
   // Create SPV node
   const spvnode = new SPVNode(pubkeyHashes, settings)
