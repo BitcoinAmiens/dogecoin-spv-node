@@ -14,6 +14,7 @@ test.before(t => {
   
   // Test data folder
   settings.DATA_FOLDER = path.join(__dirname, 'data')
+  const SEED_FILE = path.join(settings.DATA_FOLDER, 'seed.json')
 
   // Only use this mnemonic for test!
   const mnemonic = 'neutral acoustic balance describe access pitch tourist skull recycle nation silent crawl'
@@ -22,25 +23,25 @@ test.before(t => {
     fs.mkdirSync(settings.DATA_FOLDER, {recursive: true})
     fs.mkdirSync(path.join(settings.DATA_FOLDER, 'wallet'))
   }
-  
-  let wallet = new Wallet(settings)
-  
-  if (!fs.existsSync(wallet.seed_file)) {
-    wallet.createSeedFile(mnemonic)
+    
+  if (!fs.existsSync(SEED_FILE)) {
+    Wallet.createSeedFile(mnemonic, SEED_FILE)
   }  
   
+  let wallet = new Wallet(settings)
+
   t.context = { wallet }
 })
 
-test.after(t => {
+test.after.always(t => {
     // Clean after
     fs.rmSync(path.join(__dirname, 'data'), {recursive: true})
 })
 
-test.serial('should generate a new address', t => {
+test.serial('should generate a new address', async t => {
   let wallet = t.context.wallet
   
-  let address = wallet.generateNewAddress()
+  let address = await wallet.generateNewAddress()
     
   t.is(address, 'n3ajdvaJC3BVB92pQnoJ88MN5exnFNDhxe')  
 })

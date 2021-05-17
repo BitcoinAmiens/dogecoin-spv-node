@@ -299,6 +299,7 @@ class SPVNode extends EventEmitter {
           header.height = pastHeaders.get(header.previousHash).height + 1
         } else {
           const previousHeader = await this.db.getHeader(header.previousHash)
+          debug(previousHeader)
           if (previousHeader === null) {
             // Just not found
             if (header.previousHash === this.settings.PREVIOUS_HEADER) {
@@ -307,9 +308,14 @@ class SPVNode extends EventEmitter {
             } else {
               throw Error('We should not have orphan headers here damn it !')
             }
+          } else {
+            header.height = previousHeader.height + 1
+            if (header.height < this.height) {
+              debug('we already verified those headers.')
+              return
+            }
           }
 
-          header.height = previousHeader.height + 1
           if (newBestHeight < header.height) {
             newBestHeight = header.height
           }
@@ -335,8 +341,6 @@ class SPVNode extends EventEmitter {
             newBestHeight = value.height
           }
         }
-
-        debug(this.tips)
       }
 
       // keep a map of headers
@@ -361,6 +365,7 @@ class SPVNode extends EventEmitter {
     // TODO : Not sure what is used for ^
 
     if (value[1].height !== newBestHeight) {
+      debug(this.tips)
       throw Error(`wrong hash for this height ${value[1].height} -> ${newBestHeight}`)
     }
 
@@ -427,6 +432,9 @@ class SPVNode extends EventEmitter {
 
     // if invBlocks length is 0
     // well return empty [] and don't send the message
+    if (invBlocks.length === 0) {
+      return []
+    }
 
     // Only update if we haven't asked this yet
     if (this.merkleBlockNextHash !== invBlocks[invBlocks.length - 1].hash) {

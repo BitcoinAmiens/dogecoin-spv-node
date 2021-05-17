@@ -7,11 +7,11 @@ class NewAddressScreen extends Screen {
 
     debug('Initiating new adddress screen')
 
-    if (typeof args.getAddress !== 'function') {
-      throw new Error("You need to define a 'getAddress' function.")
+    if (typeof args.address !== 'string') {
+      throw new Error('No address.')
     }
 
-    this.address = args.getAddress()
+    this.address = args.address
 
     this.update()
   }

@@ -1,6 +1,7 @@
 const constants = require('./constants').constants
 const networks = require('./network')
 const path = require('path')
+const os = require('os')
 const { MainnetNotSupported, UnknownNetwork } = require('./error')
 
 function getSettings (network, dev) {
@@ -22,7 +23,18 @@ function getSettings (network, dev) {
   if (dev) {
     settings.DATA_FOLDER = path.join(__dirname, '..', 'data', settings.DATA_SUBFOLDER)
   } else {
-    settings.DATA_FOLDER = path.join(process.env.HOME, '.dogecoin-spv', settings.DATA_SUBFOLDER)
+    let platformDataFolder = os.homedir()
+    switch (process.platform) {
+      case 'darwin':
+        platformDataFolder = path.join(platformDataFolder, 'Library', 'Application Support')
+        break
+      case 'win32':
+        platformDataFolder = path.join(platformDataFolder, 'AppData', 'Local')
+        break
+      default:
+        platformDataFolder = path.join(platformDataFolder, '.local', 'share')
+    }
+    settings.DATA_FOLDER = path.join(platformDataFolder, '.dogecoin-spv', settings.DATA_SUBFOLDER)
   }
 
   return settings
