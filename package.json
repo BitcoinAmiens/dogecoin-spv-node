@@ -1,6 +1,6 @@
 {
   "name": "dogecoin-spv",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Dogecoin SPV wallet (beta)",
   "keywords": [
     "dogecoin",
@@ -46,6 +46,7 @@
   ],
   "devDependencies": {
     "ava": "^3.12.1",
+    "caxa": "^1.0.0",
     "dockerode": "^3.3.0",
     "nodemon": "^1.14.8",
     "nyc": "^15.1.0",
@@ -62,7 +63,7 @@
     "debug": "^4.1.1",
     "ecdsa": "^0.7.0",
     "exp-net": "0.0.1",
-    "level": "^6.0.0",
+    "level": "^7.0.0",
     "meow": "^6.1.0",
     "multicast-dns": "^7.0.0",
     "ripemd160": "^2.0.1",

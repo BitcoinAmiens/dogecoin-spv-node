@@ -34,7 +34,7 @@ function getSettings (network, dev) {
       default:
         platformDataFolder = path.join(platformDataFolder, '.local', 'share')
     }
-    settings.DATA_FOLDER = path.join(platformDataFolder, '.dogecoin-spv', settings.DATA_SUBFOLDER)
+    settings.DATA_FOLDER = path.join(platformDataFolder, 'dogecoin-spv', settings.DATA_SUBFOLDER)
   }
 
   return settings
