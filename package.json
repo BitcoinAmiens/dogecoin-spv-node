@@ -1,6 +1,6 @@
 {
   "name": "dogecoin-spv",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Dogecoin SPV wallet (beta)",
   "keywords": [
     "dogecoin",
@@ -16,18 +16,11 @@
     "clean": "rm -rf data",
     "test": "NETWORK=testnet nyc ava",
     "generate": "node test/tools/generate.js",
-    "lint": "standard",
-    "pkg": "pkg ."
+    "lint": "standard"
   },
   "nodemonConfig": {
     "ignore": [
       "test/*"
-    ]
-  },
-  "pkg": {
-    "outputPath": "dist",
-    "targets": [
-      "node16-linux-x64"
     ]
   },
   "bin": {
@@ -57,7 +50,6 @@
     "dockerode": "^3.3.0",
     "nodemon": "^1.14.8",
     "nyc": "^15.1.0",
-    "pkg": "^5.1.0",
     "standard": "^16.0.3"
   },
   "dependencies": {
