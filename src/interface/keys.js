@@ -8,7 +8,7 @@ const KEYS = {
   NUM_KEY_2: '\u0032',
   NUM_KEY_3: '\u0033',
   ENTER: '\u000D',
-  RETURN: '\u007F'
+  RETURN: process.platform === 'win32' ? '\u0008' : '\u007F'
 }
 
 module.exports = KEYS
