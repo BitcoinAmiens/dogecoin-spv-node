@@ -4,6 +4,7 @@ const { getDnsSeed } = require('./utils')
 const debug = require('debug')('spvnode')
 const BloomFilter = require('bloom-filter')
 const EventEmitter = require('events')
+const any = require('promise.any')
 
 const bmp = require('bitcoin-merkle-proof')
 const doubleHash = require('../utils/doubleHash')
@@ -116,7 +117,7 @@ class SPVNode extends EventEmitter {
       }
     }
     // Once we are connected to one we can start doing stuff
-    return Promise.any(promises)
+    return any(promises)
   }
 
   _getCurrentState () {
