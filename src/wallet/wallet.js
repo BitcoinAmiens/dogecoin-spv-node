@@ -20,6 +20,7 @@ const {
   prepareTransactionToSign,
   indexToBufferInt32LE,
   serializePayToPubkeyHashScript,
+  serializePayToMultisigScript,
   getPubkeyHashFromScript
 } = require('./utils')
 
@@ -296,6 +297,109 @@ class Wallet extends EventEmitter {
     return { txIns, total }
   }
 
+  async initiatePaymentChannel (amount, toPublicKey, fee) {
+    let changeAddress
+    const pubkeys = await this.db.getAllPubkeys()
+
+    debug(`send! ${amount} ${fee}`)
+
+    for (const pubkey of pubkeys) {
+      if (pubkey.isChangeAddress && !pubkey.used) {
+        changeAddress = pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE)
+        break
+      }
+    }
+
+    if (!changeAddress) {
+      changeAddress = await this.generateChangeAddress()
+    }
+
+    const transaction = {
+      version: 1,
+      txInCount: 0,
+      txIns: [],
+      txOutCount: 2,
+      txOuts: [],
+      locktime: 0,
+      hashCodeType: 1
+    }
+
+    const balance = await this.getBalance()
+
+    if (balance < amount) {
+      debug('Not enought funds!')
+      throw new Error('Not enought funds')
+    }
+
+    const { txIns, total } = await this._collectInputsForAmount(amount)
+
+    transaction.txIns = txIns
+    transaction.txInCount = txIns.length
+
+    let pkScript = serializePayToMultisigScript(toPublicKey)
+
+    transaction.txOuts[0] = {
+      value: amount,
+      pkScriptSize: pkScript.length,
+      pkScript
+    }
+
+    // If we have some change that need to be sent back
+    if (total > amount) {
+      pkScript = serializePayToPubkeyHashScript(changeAddress)
+
+      transaction.txOuts[1] = {
+        value: total - amount - fee,
+        pkScriptSize: pkScript.length,
+        pkScript
+      }
+    }
+
+    transaction.txOutCount = transaction.txOuts.length
+
+    debug('Tx in counts : ', transaction.txInCount)
+
+    for (let txInIndex = 0; txInIndex < transaction.txInCount; txInIndex++) {
+      const rawUnsignedTransaction = prepareTransactionToSign(transaction, txInIndex)
+      const rawTransactionHash = doubleHash(rawUnsignedTransaction)
+
+      const pubkeyHash = getPubkeyHashFromScript(transaction.txIns[txInIndex].signature)
+
+      // We have pubkey hash
+      debug('PubKey Hash! Looking for index...')
+      const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
+
+      const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
+
+      const signature = secp256k1.ecdsaSign(Buffer.from(rawTransactionHash, 'hex'), key.privateKey)
+
+      const signatureDer = Buffer.from(secp256k1.signatureExport(signature.signature))
+
+      const signatureCompactSize = CompactSize.fromSize(signatureDer.length + 1)
+      const publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
+
+      const scriptSig = signatureCompactSize.toString('hex') + signatureDer.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
+
+      transaction.txIns[txInIndex].signatureSize = CompactSize.fromSize(Buffer.from(scriptSig).length, 'hex')
+      transaction.txIns[txInIndex].signature = Buffer.from(scriptSig, 'hex')
+    }
+
+    delete transaction.hashCodeType
+
+    const rawTransaction = encodeRawTransaction(transaction)
+
+    // TODO: Adding this to pending txs should be done once it has been successfully broadcasted
+    if (transaction.txOuts[1]) {
+      this.pendingTxOuts.set(doubleHash(rawTransaction).toString('hex'), transaction.txOuts[1])
+    }
+
+    debug(rawTransaction.toString('hex'))
+
+    // use raw transaction to create refund transaction
+    
+    
+  }
+
   async send (amount, to, fee) {
     let changeAddress
     const pubkeys = await this.db.getAllPubkeys()
@@ -387,6 +491,7 @@ class Wallet extends EventEmitter {
 
     const rawTransaction = encodeRawTransaction(transaction)
 
+    // TODO: Adding this to pending txs should be done once it has been successfully broadcasted
     if (transaction.txOuts[1]) {
       this.pendingTxOuts.set(doubleHash(rawTransaction).toString('hex'), transaction.txOuts[1])
     }

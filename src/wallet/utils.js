@@ -104,6 +104,13 @@ function serializePayToPubkeyHashScript (address) {
   return Buffer.from('76a914' + address.toString('hex') + '88ac', 'hex')
 }
 
+function serializePayToMultisigScript (publickeys) {
+  if (publickeys.length !== 2) {
+    throw new Error('Only support 2 out of 2 multisig')
+  }
+  return Buffer.from('02' + publickeys[0] + publickeys[1] + '02ae', 'hex')
+}
+
 function getPubkeyHashFromScript (script) {
   // We should have a switch here
   const firstByte = script.slice(0, 1).toString('hex')
@@ -131,5 +138,6 @@ module.exports = {
   prepareTransactionToSign,
   indexToBufferInt32LE,
   serializePayToPubkeyHashScript,
+  serializePayToMultisigScript,
   getPubkeyHashFromScript
 }
