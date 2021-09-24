@@ -10,7 +10,7 @@ You will need docker installed.
 
 Build the docker image:
 ```
-$ make build
+$ make build-regtest
 ```
 
 Start the docker container:
