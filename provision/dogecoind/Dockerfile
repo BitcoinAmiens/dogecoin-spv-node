@@ -6,11 +6,11 @@ RUN apt-get -y install wget
 
 WORKDIR /usr/src
 
-RUN wget https://github.com/dogecoin/dogecoin/releases/download/v1.14.2/dogecoin-1.14.2-x86_64-linux-gnu.tar.gz
-RUN tar -xzvf dogecoin-1.14.2-x86_64-linux-gnu.tar.gz
-RUN chmod +x dogecoin-1.14.2/bin/dogecoind dogecoin-1.14.2/bin/dogecoin-cli
-RUN ln -s /usr/src/dogecoin-1.14.2/bin/dogecoind /usr/bin/dogecoind
-RUN ln -s /usr/src/dogecoin-1.14.2/bin/dogecoin-cli /usr/bin/dogecoin-cli
+RUN wget https://github.com/dogecoin/dogecoin/releases/download/v1.14.4/dogecoin-1.14.4-x86_64-linux-gnu.tar.gz
+RUN tar -xzvf dogecoin-1.14.4-x86_64-linux-gnu.tar.gz
+RUN chmod +x dogecoin-1.14.4/bin/dogecoind dogecoin-1.14.4/bin/dogecoin-cli
+RUN ln -s /usr/src/dogecoin-1.14.4/bin/dogecoind /usr/bin/dogecoind
+RUN ln -s /usr/src/dogecoin-1.14.4/bin/dogecoin-cli /usr/bin/dogecoin-cli
 
 ADD dogecoin.conf /root/.dogecoin/dogecoin.conf
 
