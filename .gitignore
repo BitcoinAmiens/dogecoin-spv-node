@@ -8,3 +8,4 @@ coverage
 *.zip
 *.tar.gz
 dist/
+!docs/.vuepress/dist

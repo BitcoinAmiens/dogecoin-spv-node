@@ -16,11 +16,14 @@
     "clean": "rm -rf data",
     "test": "NETWORK=testnet nyc ava",
     "generate": "node test/tools/generate.js",
-    "lint": "standard"
+    "lint": "standard",
+    "docs:dev": "vuepress dev documentation",
+    "docs:build": "vuepress build documentation"
   },
   "nodemonConfig": {
     "ignore": [
-      "test/*"
+      "test/*",
+      "docs/*"
     ]
   },
   "bin": {
@@ -50,7 +53,8 @@
     "dockerode": "^3.3.0",
     "nodemon": "^2.0.12",
     "nyc": "^15.1.0",
-    "standard": "^16.0.3"
+    "standard": "^16.0.3",
+    "vuepress": "^1.8.2"
   },
   "dependencies": {
     "bip32": "^2.0.3",
