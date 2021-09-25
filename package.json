@@ -38,7 +38,8 @@
   },
   "standard": {
     "ignore": [
-      "test/**"
+      "test/**",
+      "docs/**"
     ]
   },
   "files": [
