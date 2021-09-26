@@ -20,7 +20,8 @@ const {
   prepareTransactionToSign,
   indexToBufferInt32LE,
   serializePayToPubkeyHashScript,
-  serializePayToMultisigScript,
+  serializePayToMultisigWithTimeLockScript,
+  createPayToHash,
   getPubkeyHashFromScript
 } = require('./utils')
 
@@ -336,11 +337,14 @@ class Wallet extends EventEmitter {
     transaction.txIns = txIns
     transaction.txInCount = txIns.length
 
-    let pkScript = serializePayToMultisigScript(toPublicKey)
+    let multisigScript = serializePayToMultisigWithTimeLockScript(toPublicKey)
+    let p2sh = createPayToHash(multisigScript)
+
+    // save address and maybe add it to the filter
 
     transaction.txOuts[0] = {
       value: amount,
-      pkScriptSize: pkScript.length,
+      pkScriptSize: p2sh.script.length,
       pkScript
     }
 

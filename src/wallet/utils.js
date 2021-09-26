@@ -1,6 +1,7 @@
 const bs58check = require('bs58check')
 const RIPEMD160 = require('ripemd160')
 const crypto = require('crypto')
+const bip65 = require('bip65')
 
 const CompactSize = require('../utils/compactSize')
 
@@ -105,10 +106,40 @@ function serializePayToPubkeyHashScript (address) {
 }
 
 function serializePayToMultisigScript (publickeys) {
+  // This is useless for now
   if (publickeys.length !== 2) {
     throw new Error('Only support 2 out of 2 multisig')
   }
-  return Buffer.from('02' + publickeys[0] + publickeys[1] + '02ae', 'hex')
+  return Buffer.from('52' + publickeys[0] + publickeys[1] + '52ae', 'hex')
+}
+
+function serializePayToMultisigWithTimeLockScript (publickeys, blocksLock) {
+  if (publickeys.length !== 2) {
+    throw new Error('Only support 2 out of 2 multisig')
+  }
+
+  const locktime = Buffer.from(bip65.encode({ blocks: blocksLock }).toString(16), 'hex').reverse().toString('hex') + '00'
+
+  return Buffer.from(
+    '63' // OP_IF
+    + locktime // locktime value with sign byte (should end with 00)
+    + 'b1' // OP_CHECKLOCKTIMEVERIFY
+    + '75' // OP_DROP
+    + publickeys[0].length / 2 // length divide by two because hex string
+    + publickeys[0] // client public key (mine)
+    + 'ad' + '67' + '52' + '68' // OP_CHECKSIGVERIFY OP_ELSE OP_2 OP_ENDIF
+    + '52' + publickeys[0] + publickeys[1] + '52ae',
+    'hex')
+}
+
+function createPayToHash (script) {
+  if (Buffer.isBuffer(script)) {
+    throw new Error('Script is expected to be a Buffer.')
+  }
+
+  let hashScript = new RIPEMD160().update(script).digest()
+
+  return { script: Buffer.from('a9'+ hashScript.length + hashScript.toString('hex') +'87', 'hex'), hashScript }
 }
 
 function getPubkeyHashFromScript (script) {
@@ -139,5 +170,7 @@ module.exports = {
   indexToBufferInt32LE,
   serializePayToPubkeyHashScript,
   serializePayToMultisigScript,
-  getPubkeyHashFromScript
+  getPubkeyHashFromScript,
+  createPayToHash,
+  serializePayToMultisigWithTimeLockScript
 }
