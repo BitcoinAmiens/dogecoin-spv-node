@@ -12,6 +12,7 @@ class MainScreen extends Screen {
     if (typeof args.store !== 'object' ||
       typeof args.displayNewAddressScreen !== 'function' ||
       typeof args.displaySendDogeScreen !== 'function' ||
+      typeof args.displayPaymentChannelScreen !== 'function' ||
       typeof args.stop !== 'function'
     ) {
       throw new Error("You need to define a 'store' object.")
@@ -20,6 +21,7 @@ class MainScreen extends Screen {
     this.store = args.store
     this.displayNewAddressScreen = args.displayNewAddressScreen
     this.displaySendDogeScreen = args.displaySendDogeScreen
+    this.displayPaymentChannelScreen = args.displayPaymentChannelScreen
     this.stop = args.stop
 
     this._handleChangedEvent = this._handleChangedEvent.bind(this)
@@ -38,6 +40,9 @@ class MainScreen extends Screen {
 
   keyPressed (key) {
     switch (key) {
+      case KEYS.NUM_KEY_0:
+        this.stop()
+        break
       case KEYS.NUM_KEY_1:
         this.store.removeListener('changed', this._handleChangedEvent)
         this.displayNewAddressScreen()
@@ -47,7 +52,8 @@ class MainScreen extends Screen {
         this.displaySendDogeScreen()
         break
       case KEYS.NUM_KEY_3:
-        this.stop()
+        this.store.removeListener('changed', this._handleChangedEvent)
+        this.displayPaymentChannelScreen()
         break
     }
   }
@@ -80,7 +86,9 @@ class MainScreen extends Screen {
 
     1. Generate a new address
     2. Send dogecoins
-    3. Quit
+    3. Create payment channel
+    
+    0. Quit
 `
     this.numberOfLines = layout.split('\n').length
 

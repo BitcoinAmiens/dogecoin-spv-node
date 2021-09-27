@@ -11,7 +11,7 @@ function pubkeyToPubkeyHash (pubkey) {
   return pubKeyHash
 }
 
-function pubkeyToAddress (pubkey, networkByte, hash = false, redeemScriptHash = false) {
+function pubkeyToAddress (pubkey, networkByte, hash = false) {
   let pubKeyHash = pubkey
 
   if (!hash) {
@@ -19,10 +19,6 @@ function pubkeyToAddress (pubkey, networkByte, hash = false, redeemScriptHash = 
   }
 
   networkByte = Buffer.from(networkByte, 'hex')
-
-  if (redeemScriptHash) {
-    networkByte = Buffer.from('c4', 'hex')
-  }
 
   const temp = Buffer.concat([networkByte, pubKeyHash])
 
@@ -125,21 +121,21 @@ function serializePayToMultisigWithTimeLockScript (publickeys, blocksLock) {
     + locktime // locktime value with sign byte (should end with 00)
     + 'b1' // OP_CHECKLOCKTIMEVERIFY
     + '75' // OP_DROP
-    + publickeys[0].length / 2 // length divide by two because hex string
+    + (publickeys[0].length / 2).toString(16) // length divide by two because hex string
     + publickeys[0] // client public key (mine)
     + 'ad' + '67' + '52' + '68' // OP_CHECKSIGVERIFY OP_ELSE OP_2 OP_ENDIF
-    + '52' + publickeys[0] + publickeys[1] + '52ae',
+    + '52' + (publickeys[0].length / 2).toString(16) + publickeys[0] + (publickeys[1].length / 2).toString(16) + publickeys[1] + '52ae',
     'hex')
 }
 
 function createPayToHash (script) {
-  if (Buffer.isBuffer(script)) {
+  if (!Buffer.isBuffer(script)) {
     throw new Error('Script is expected to be a Buffer.')
   }
 
   let hashScript = new RIPEMD160().update(script).digest()
 
-  return { script: Buffer.from('a9'+ hashScript.length + hashScript.toString('hex') +'87', 'hex'), hashScript }
+  return { script: Buffer.from('a9'+ hashScript.length.toString(16) + hashScript.toString('hex') +'87', 'hex'), hashScript }
 }
 
 function getPubkeyHashFromScript (script) {

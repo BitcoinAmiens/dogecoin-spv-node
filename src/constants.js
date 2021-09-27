@@ -9,6 +9,7 @@ const constants = {
     NODE_IP: '127.0.0.1',
     DEFAULT_PORT: 18444,
     NETWORK_BYTE: '6f',
+    SCRIPT_BYTE: 'c4',
     PATH: '44\'/1\'/0\'/',
     WALLET: {
       wif: 0xEF,
@@ -26,6 +27,7 @@ const constants = {
     DNS_SEED: ['testseed.jrn.me.uk', 'testnets.chain.so', 'senatorwhiskers.com'],
     DEFAULT_PORT: 44556,
     NETWORK_BYTE: '71',
+    SCRIPT_BYTE: 'c4',
     PATH: '44\'/1\'/0\'/',
     WALLET: {
       wif: 0xF1,
@@ -43,6 +45,7 @@ const constants = {
     DNS_SEED: [],
     DEFAULT_PORT: 22556,
     NETWORK_BYTE: '1e',
+    SCRIPT_BYTE: '16',
     PATH: '44\'/3\'/0\'/',
     WALLET: {
       wif: 0x9E,

@@ -52,11 +52,24 @@ async function app (args) {
   // Will be needed in the interface
   const getAddress = async () => { return await wallet.getAddress() }
 
+  // Start payment channel
+  const initiatePaymentChannel = async (amount, toPublicKey, blocksLock) => { 
+    // TODO: calculate fee properly
+    const fee = MIN_FEE * SATOSHIS
+    let { address, rawTransaction } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
+    spvnode.sendRawTransaction(rawTransaction)
+    debug('SENT TO P2SH !')
+    const newBalance = await wallet.getBalance()
+    store.setBalance(newBalance)
+    return address
+  }
+
   // Create Interface
   const ui = new Interface({
     store,
     getAddress,
-    sendTransaction
+    sendTransaction,
+    initiatePaymentChannel
   })
 
   // Do we have seed already ?

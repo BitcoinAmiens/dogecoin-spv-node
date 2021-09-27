@@ -8,6 +8,7 @@ const {
   NewAddressScreen,
   SendDogeScreen,
   MnemonicScreen,
+  PaymentChannelScreen,
   DummyScreen
 } = require('./screens/')
 
@@ -22,13 +23,15 @@ class Interface extends EventEmitter {
     if (
       typeof args.getAddress !== 'function' ||
       typeof args.sendTransaction !== 'function' ||
+      typeof args.initiatePaymentChannel !== 'function' ||
       typeof args.store !== 'object'
     ) {
-      throw new Error("You need to define 'getAddress' function, 'sendTransaction' function and a 'store' object.")
+      throw new Error("You need to define 'getAddress' function, 'sendTransaction' function, 'initiatePaymentChannel' function and a 'store' object.")
     }
 
     this.getAddress = args.getAddress
     this.sendTransaction = args.sendTransaction
+    this.initiatePaymentChannel = args.initiatePaymentChannel
     this.store = args.store
 
     // dummy screen to avoid trouble
@@ -124,6 +127,15 @@ class Interface extends EventEmitter {
     })
   }
 
+  displayPaymentChannelScreen () {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines - 1), async () => {
+      process.stdout.write(terminalStyle.CLEAR)
+
+      // Update screen
+      this.screen = new PaymentChannelScreen({ initiatePaymentChannel: this.initiatePaymentChannel })
+    })
+  }
+
   displayMainScreen () {
     process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines - 1), () => {
       process.stdout.write(terminalStyle.CLEAR)
@@ -131,6 +143,7 @@ class Interface extends EventEmitter {
         store: this.store,
         displayNewAddressScreen: this.displayNewAddressScreen.bind(this),
         displaySendDogeScreen: this.displaySendDogeScreen.bind(this),
+        displayPaymentChannelScreen: this.displayPaymentChannelScreen.bind(this),
         stop: this.stop.bind(this)
       })
       // TODO: This ugly

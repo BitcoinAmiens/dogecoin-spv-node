@@ -136,7 +136,7 @@ class Wallet extends EventEmitter {
   }
 
   // Find an unused address or generate a new one
-  async getAddress () {
+  async getUnusedPubkey () {
     const pubkeys = await this.db.getAllPubkeys()
 
     let pk
@@ -149,11 +149,18 @@ class Wallet extends EventEmitter {
     }
 
     if (!pk) {
-      return this.generateAddress()
+      return this.generatePublicKey()
     }
 
-    return pubkeyToAddress(Buffer.from(pk.publicKey, 'hex'), this.settings.NETWORK_BYTE)
+    return Buffer.from(pk.publicKey, 'hex')
   }
+
+    // Return a unused address
+    async getAddress () {
+      const pubkey = await this.getUnusedPubkey()
+
+      return pubkeyToAddress(pubkey, this.settings.NETWORK_BYTE)
+    }
 
   async addTxToWallet (tx) {
     // prepare BigInt conversion to string so we can save to db
@@ -224,14 +231,20 @@ class Wallet extends EventEmitter {
     }
   }
 
-  async generateNewAddress (isChangeAddress = false) {
+  async generatePublicKey (isChangeAddress = false) {
     const index = await this._getNextIndex(isChangeAddress)
     const path = this.settings.PATH + (isChangeAddress ? '1' : '0') + '/' + index
     const root = bip32.fromSeed(this._seed, this.settings.WALLET)
     const child = root.derivePath(path)
     await this._updatePubkeysState(index, child.publicKey, isChangeAddress ? 1 : 0)
 
-    return pubkeyToAddress(child.publicKey, this.settings.NETWORK_BYTE)
+    return child.publicKey
+  }
+
+  async generateNewAddress (isChangeAddress = false) {
+    const pubkey = await this.generatePublicKey(isChangeAddress)
+
+    return pubkeyToAddress(pubkey, this.settings.NETWORK_BYTE)
   }
 
   generateAddress () {
@@ -298,7 +311,7 @@ class Wallet extends EventEmitter {
     return { txIns, total }
   }
 
-  async initiatePaymentChannel (amount, toPublicKey, fee) {
+  async initiatePaymentChannel (amount, toPublicKey, fee, blocksLock) {
     let changeAddress
     const pubkeys = await this.db.getAllPubkeys()
 
@@ -337,20 +350,22 @@ class Wallet extends EventEmitter {
     transaction.txIns = txIns
     transaction.txInCount = txIns.length
 
-    let multisigScript = serializePayToMultisigWithTimeLockScript(toPublicKey)
-    let p2sh = createPayToHash(multisigScript)
+    const unusedPubkey = await this.getUnusedPubkey()
+    const multisigScript = serializePayToMultisigWithTimeLockScript([unusedPubkey.toString('hex'), toPublicKey], blocksLock)
+    const p2sh = createPayToHash(multisigScript)
 
-    // save address and maybe add it to the filter
+    // TODO: save address and maybe add it to the filter
+    debug(`P2SH hash script : ${p2sh.hashScript.toString('hex')}`)
 
     transaction.txOuts[0] = {
       value: amount,
       pkScriptSize: p2sh.script.length,
-      pkScript
+      pkScript: p2sh.script
     }
 
     // If we have some change that need to be sent back
     if (total > amount) {
-      pkScript = serializePayToPubkeyHashScript(changeAddress)
+      const pkScript = serializePayToPubkeyHashScript(changeAddress)
 
       transaction.txOuts[1] = {
         value: total - amount - fee,
@@ -401,7 +416,7 @@ class Wallet extends EventEmitter {
 
     // use raw transaction to create refund transaction
     
-    
+    return { address: pubkeyToAddress(p2sh.hashScript, this.settings.SCRIPT_BYTE), rawTransaction: rawTransaction }
   }
 
   async send (amount, to, fee) {
