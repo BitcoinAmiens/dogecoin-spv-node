@@ -5,10 +5,14 @@ const bip65 = require('bip65')
 
 const CompactSize = require('../utils/compactSize')
 
+function hashing (buf) {
+  let hash = crypto.createHash('sha256').update(buf).digest()
+  hash = new RIPEMD160().update(hash).digest()
+  return hash
+}
+
 function pubkeyToPubkeyHash (pubkey) {
-  let pubKeyHash = crypto.createHash('sha256').update(pubkey).digest()
-  pubKeyHash = new RIPEMD160().update(pubKeyHash).digest()
-  return pubKeyHash
+  return hashing(pubkey)
 }
 
 function pubkeyToAddress (pubkey, networkByte, hash = false) {
@@ -31,7 +35,15 @@ function pubkeyToAddress (pubkey, networkByte, hash = false) {
 function prepareTransactionToSign (transaction, vint) {
   const txInCount = CompactSize.fromSize(transaction.txInCount)
   const txOutCount = CompactSize.fromSize(transaction.txOutCount)
-  const buffer = Buffer.alloc(4 + 1 + (32 + 4 + 1 + 25 + 4) + (transaction.txInCount - 1) * (32 + 4 + 1 + 4) + 1 + transaction.txOutCount * (8 + 1 + 25) + 4 + 4)
+  let bufSize = 4 + 1
+  bufSize += 41 * transaction.txInCount + 25
+  bufSize += 1
+  for (let txout of transaction.txOuts) {
+    bufSize += 9 + txout.pkScriptSize
+  }
+  bufSize += 8
+
+  const buffer = Buffer.alloc(bufSize)
   let offset = 0
 
   buffer.writeUInt32LE(transaction.version, offset)
@@ -65,7 +77,6 @@ function prepareTransactionToSign (transaction, vint) {
   }
 
   txOutCount.copy(buffer, offset)
-
   offset += txOutCount.length
 
   for (let txOutIndex = 0; txOutIndex < transaction.txOutCount; txOutIndex++) {
@@ -114,17 +125,19 @@ function serializePayToMultisigWithTimeLockScript (publickeys, blocksLock) {
     throw new Error('Only support 2 out of 2 multisig')
   }
 
-  const locktime = Buffer.from(bip65.encode({ blocks: blocksLock }).toString(16), 'hex').reverse().toString('hex') + '00'
+  const locktime = Buffer.from(bip65.encode({ blocks: blocksLock }).toString(16), 'hex').reverse().toString('hex') + '00' // locktime value with sign byte (should end with 00)
+
+  const locktimeSize = CompactSize.fromSize(Buffer.from(locktime, 'hex').length)
 
   return Buffer.from(
     '63' // OP_IF
-    + locktime // locktime value with sign byte (should end with 00)
+    + locktimeSize.slice(0, 1).toString('hex') + locktime 
     + 'b1' // OP_CHECKLOCKTIMEVERIFY
     + '75' // OP_DROP
     + (publickeys[0].length / 2).toString(16) // length divide by two because hex string
     + publickeys[0] // client public key (mine)
     + 'ad' + '67' + '52' + '68' // OP_CHECKSIGVERIFY OP_ELSE OP_2 OP_ENDIF
-    + '52' + (publickeys[0].length / 2).toString(16) + publickeys[0] + (publickeys[1].length / 2).toString(16) + publickeys[1] + '52ae',
+    + (publickeys[0].length / 2).toString(16) + publickeys[0] + (publickeys[1].length / 2).toString(16) + publickeys[1] + '52ae',
     'hex')
 }
 
@@ -133,7 +146,7 @@ function createPayToHash (script) {
     throw new Error('Script is expected to be a Buffer.')
   }
 
-  let hashScript = new RIPEMD160().update(script).digest()
+  let hashScript = hashing(script)
 
   return { script: Buffer.from('a9'+ hashScript.length.toString(16) + hashScript.toString('hex') +'87', 'hex'), hashScript }
 }
@@ -149,11 +162,9 @@ function getPubkeyHashFromScript (script) {
     case '76':
     // public key hash
       return script.slice(3, 23)
-    /*
     case 'a9':
       // redem script hash
       return script.slice(2, 22)
-    */
     default:
       return null
   }

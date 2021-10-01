@@ -59,7 +59,8 @@ class Wallet extends EventEmitter {
       // Calculate addresses index
       let countChangeAddress = 0
       for (const pubkey of pubkeys) {
-        debug(pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE))
+        debug(pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE).toString('hex'))
+        debug(pubkeyToPubkeyHash(Buffer.from(pubkey.publicKey, 'hex')).toString('hex'))
         if (pubkey.isChangeAddress) {
           countChangeAddress = countChangeAddress + 1
         }
@@ -155,14 +156,17 @@ class Wallet extends EventEmitter {
     return Buffer.from(pk.publicKey, 'hex')
   }
 
-    // Return a unused address
-    async getAddress () {
-      const pubkey = await this.getUnusedPubkey()
+  // Return a unused address
+  async getAddress () {
+    const pubkey = await this.getUnusedPubkey()
 
-      return pubkeyToAddress(pubkey, this.settings.NETWORK_BYTE)
-    }
+    return pubkeyToAddress(pubkey, this.settings.NETWORK_BYTE)
+  }
 
   async addTxToWallet (tx) {
+
+    debug(tx)
+
     // prepare BigInt conversion to string so we can save to db
     for (const i in tx.txOuts) {
       tx.txOuts[i].value = tx.txOuts[i].value.toString()
@@ -199,15 +203,16 @@ class Wallet extends EventEmitter {
       const txOut = tx.txOuts[index]
 
       const pubkeyHash = getPubkeyHashFromScript(txOut.pkScript)
+      debug(`${pubkeyHash.toString('hex')}`)
       if (!pubkeyHash) {
         debug('unknown script')
-        return
+        continue
       }
 
       const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
       if (!pubkey) {
         // Not in our wallet (false positive)
-        return
+        continue
       }
 
       const indexBuffer = indexToBufferInt32LE(index)
@@ -355,6 +360,7 @@ class Wallet extends EventEmitter {
     const p2sh = createPayToHash(multisigScript)
 
     // TODO: save address and maybe add it to the filter
+    debug(`P2SH script : ${multisigScript.toString('hex')}`)
     debug(`P2SH hash script : ${p2sh.hashScript.toString('hex')}`)
 
     transaction.txOuts[0] = {
@@ -385,7 +391,7 @@ class Wallet extends EventEmitter {
       const pubkeyHash = getPubkeyHashFromScript(transaction.txIns[txInIndex].signature)
 
       // We have pubkey hash
-      debug('PubKey Hash! Looking for index...')
+      debug(`PubKey Hash ${pubkeyHash.toString('hex')}! Looking for index...`)
       const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
 
       const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
@@ -416,7 +422,7 @@ class Wallet extends EventEmitter {
 
     // use raw transaction to create refund transaction
     
-    return { address: pubkeyToAddress(p2sh.hashScript, this.settings.SCRIPT_BYTE), rawTransaction: rawTransaction }
+    return { address: pubkeyToAddress(p2sh.hashScript, this.settings.SCRIPT_BYTE, true), rawTransaction: rawTransaction }
   }
 
   async send (amount, to, fee) {

@@ -56,11 +56,11 @@ async function app (args) {
   const initiatePaymentChannel = async (amount, toPublicKey, blocksLock) => { 
     // TODO: calculate fee properly
     const fee = MIN_FEE * SATOSHIS
-    let { address, rawTransaction } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
-    spvnode.sendRawTransaction(rawTransaction)
+    let { address } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
+    /*spvnode.sendRawTransaction(rawTransaction)
     debug('SENT TO P2SH !')
     const newBalance = await wallet.getBalance()
-    store.setBalance(newBalance)
+    store.setBalance(newBalance)*/
     return address
   }
 

@@ -7,6 +7,7 @@ class WalletDB {
     this.unspentOutputs = level(path.join(dataFolder, subPath, 'unspent'), { valueEncoding: 'json' })
     this.txs = level(path.join(dataFolder, subPath, 'tx'), { valueEncoding: 'json' })
     this.pubkeys = level(path.join(dataFolder, subPath, 'pubkey'), { valueEncoding: 'json' })
+    this.redeemScripts = level(path.join(dataFolder, subPath, 'redeemscript'), { valueEncoding: 'json' })
   }
 
   // Get all the UTXO from the database
