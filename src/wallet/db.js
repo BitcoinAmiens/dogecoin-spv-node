@@ -82,6 +82,14 @@ class WalletDB {
         .on('end', function () { resolve(pubkeys) })
     })
   }
+
+  getRedeemScript (scriptHash) {
+    return this.redeemScripts.get(scriptHash)
+  }
+
+  putRedeemScript (hash, script) {
+    return this.redeemScripts.put(hash, script)
+  }
 }
 
 module.exports = WalletDB

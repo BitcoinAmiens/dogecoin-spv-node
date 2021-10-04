@@ -4,6 +4,7 @@ const crypto = require('crypto')
 const bip65 = require('bip65')
 
 const CompactSize = require('../utils/compactSize')
+const { scriptTypes } = require('./scripts')
 
 function hashing (buf) {
   let hash = crypto.createHash('sha256').update(buf).digest()
@@ -152,7 +153,6 @@ function createPayToHash (script) {
 }
 
 function getPubkeyHashFromScript (script) {
-  // We should have a switch here
   const firstByte = script.slice(0, 1).toString('hex')
 
   switch (firstByte) {
@@ -170,6 +170,51 @@ function getPubkeyHashFromScript (script) {
   }
 }
 
+function extractPubkeyHashFromP2PK (script) {
+  const firstByte = script.slice(0, 1).toString('hex')
+
+  if ('21' !== firstByte) {
+    throw new Error('Script is not pay-to-pubkey standard.')
+  }
+
+  return pubkeyToPubkeyHash(script.slice(1, 34))
+}
+
+function extractPubkeyHashFromP2PKH (script) {
+  const firstByte = script.slice(0, 1).toString('hex')
+
+  if ('76' !== firstByte) {
+    throw new Error('Script is not pay-to-pubkey-hash standard.')
+  }
+
+  return script.slice(3, 23)
+}
+
+function extractScriptHashFromP2SH (script) {
+  const firstByte = script.slice(0, 1).toString('hex')
+
+  if ('a9' !== firstByte) {
+    throw new Error('Script is not pay-to-script-hash standard.')
+  }
+
+  return script.slice(2, 22)
+}
+
+function getScriptType (script) {
+  const firstByte = script.slice(0, 1).toString('hex')
+
+  switch (firstByte) {
+    case '21':
+      return scriptTypes.PAY_TO_PUBKEY
+    case '76':
+      return scriptTypes.PAY_TO_PUBKEY_HASH
+    case 'a9':
+      return scriptTypes.PAY_TO_SCRIPT_HASH
+    default:
+      return scriptTypes.UNKNOWN
+  }
+}
+
 module.exports = {
   pubkeyToPubkeyHash,
   pubkeyToAddress,
@@ -179,5 +224,9 @@ module.exports = {
   serializePayToMultisigScript,
   getPubkeyHashFromScript,
   createPayToHash,
-  serializePayToMultisigWithTimeLockScript
+  serializePayToMultisigWithTimeLockScript,
+  getScriptType,
+  extractPubkeyHashFromP2PK,
+  extractPubkeyHashFromP2PKH,
+  extractScriptHashFromP2SH,
 }
