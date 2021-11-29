@@ -3,6 +3,7 @@ const NewAddressScreen = require('./newAddressScreen')
 const SendDogeScreen = require('./sendDogeScreen')
 const MnemonicScreen = require('./mnemonicScreen')
 const PaymentChannelScreen = require('./paymentChannelScreen')
+const MicroPaymentScreen = require('./microPaymentScreen')
 const DummyScreen = require('./dummyScreen')
 
 module.exports = {
@@ -11,5 +12,6 @@ module.exports = {
   SendDogeScreen,
   MnemonicScreen,
   PaymentChannelScreen,
+  MicroPaymentScreen,
   DummyScreen
 }

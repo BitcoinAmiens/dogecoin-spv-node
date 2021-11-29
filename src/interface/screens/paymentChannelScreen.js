@@ -4,6 +4,7 @@ const KEYS = require('../keys')
 const { SATOSHIS } = require('../../constants')
 
 const BOB_PUBLIC_KEY = '033018856019108336a67b29f4cf9612b9b83953a92a5ef8472b6822f78d850477'
+const HOST = 'http://127.0.0.1:5000'
 
 /*
   Initiate Payment Channel Screen
@@ -12,7 +13,7 @@ class PaymentChannelScreen extends Screen {
   constructor(args) {
     super()
 
-    debug('Initiating new adddress screen')
+    debug('Initiating new payment channel')
 
     this.initiatePaymentChannel = args.initiatePaymentChannel
     this.update()
@@ -36,10 +37,12 @@ class PaymentChannelScreen extends Screen {
   }
 
   update() {
+    const p2shline = this.p2shAddress ? `P2SH address : ${this.p2shAddress}` : `Press "Enter" to create a payment channel with ${HOST}`
+
     const layout = `
 ================ PAYMENT CHANNEL ================
 
-  P2SH address : ${this.p2shAddress}
+  ${p2shline}  
 
   Press "Return" to return to main screen
 `

@@ -71,7 +71,7 @@
     "ecdsa": "^0.7.0",
     "exp-net": "0.0.1",
     "level": "^7.0.0",
-    "meow": "^6.1.0",
+    "meow": "^10.1.2",
     "multicast-dns": "^7.0.0",
     "promise.any": "^2.0.2",
     "ripemd160": "^2.0.1",

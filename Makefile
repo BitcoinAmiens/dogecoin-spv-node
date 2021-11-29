@@ -15,6 +15,9 @@ generate:
 clean-regtest:
 	rm -rf data/regtest
 
+clean-regtest-data:
+	rm -rf data/regtest/spvnode data/regtest/wallet
+
 package: clean-package package-linux package-win package-macos
 
 package-linux:

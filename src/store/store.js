@@ -12,6 +12,7 @@ class Store extends EventEmitter {
     this.tips = new Map()
     this.merkleHeight = 0
     this.rejectMessage = {}
+    this.paymentChannels = []
   }
 
   getNumPeers () {
@@ -41,6 +42,12 @@ class Store extends EventEmitter {
     this.rejectMessage = rejectMessage
 
     this.emit('rejected')
+  }
+
+  setPaymentChannels (paymentChannels) {
+    this.paymentChannels = paymentChannels
+
+    this.emit('changed')
   }
 }
 

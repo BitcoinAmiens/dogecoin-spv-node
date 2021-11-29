@@ -4,7 +4,7 @@ const crypto = require('crypto')
 const bip65 = require('bip65')
 
 const CompactSize = require('../utils/compactSize')
-const { scriptTypes } = require('./scripts')
+const { ScriptTypes } = require('./scripts')
 
 function hashing (buf) {
   let hash = crypto.createHash('sha256').update(buf).digest()
@@ -205,13 +205,13 @@ function getScriptType (script) {
 
   switch (firstByte) {
     case '21':
-      return scriptTypes.PAY_TO_PUBKEY
+      return ScriptTypes.PAY_TO_PUBKEY
     case '76':
-      return scriptTypes.PAY_TO_PUBKEY_HASH
+      return ScriptTypes.PAY_TO_PUBKEY_HASH
     case 'a9':
-      return scriptTypes.PAY_TO_SCRIPT_HASH
+      return ScriptTypes.PAY_TO_SCRIPT_HASH
     default:
-      return scriptTypes.UNKNOWN
+      return ScriptTypes.UNKNOWN
   }
 }
 

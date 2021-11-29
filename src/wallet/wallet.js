@@ -13,7 +13,7 @@ const path = require('path')
 const EventEmitter = require('events')
 
 const WalletDB = require('./db')
-const { scriptTypes } = require('./scripts')
+const { ScriptTypes } = require('./scripts')
 
 const {
   pubkeyToAddress,
@@ -31,6 +31,7 @@ const {
 } = require('./utils')
 
 const { MissingSeedError, NotEnoughtKeysGenerated } = require('./errors')
+const { DEFAULT_ENCODING } = require('crypto')
 
 // HD wallet for dogecoin
 class Wallet extends EventEmitter {
@@ -42,7 +43,8 @@ class Wallet extends EventEmitter {
     this.pendingTxOuts = new Map()
     this.db = new WalletDB(this.settings.DATA_FOLDER)
 
-    this.seed_file = path.join(this.settings.DATA_FOLDER, 'seed.json')
+    this._seedFile = path.join(this.settings.DATA_FOLDER, 'seed.json')
+    this._redeemScriptsFile = path.join(this.settings.DATA_FOLDER, 'redeemscripts.json')
 
     this._nextAddressIndex = 0
     this._nextChangeAddressIndex = 0
@@ -64,8 +66,7 @@ class Wallet extends EventEmitter {
       // Calculate addresses index
       let countChangeAddress = 0
       for (const pubkey of pubkeys) {
-        debug(pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE).toString('hex'))
-        debug(pubkeyToPubkeyHash(Buffer.from(pubkey.publicKey, 'hex')).toString('hex'))
+        debug(`Adding ${pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE).toString('hex')}`)
         if (pubkey.isChangeAddress) {
           countChangeAddress = countChangeAddress + 1
         }
@@ -73,6 +74,17 @@ class Wallet extends EventEmitter {
       this._nextAddressIndex = pubkeys.length - countChangeAddress
       this._nextChangeAddressIndex = countChangeAddress
     }
+
+    // Sync with redeemscripts.json
+    const redeemScripts = this._readRedeemScriptsFile()
+    for (let rs of redeemScripts) {
+      let result = await this.db.getRedeemScript(rs.hash)
+      if (!result) {
+        // If missing we add it
+        await this.db.putRedeemScript(rs.hash, rs.script)
+      }
+    }
+
   }
 
   static createSeedFile(mnemonic, seedFile) {
@@ -90,9 +102,26 @@ class Wallet extends EventEmitter {
   }
 
   _readSeedFile() {
-    const data = fs.readFileSync(this.seed_file)
+    const data = fs.readFileSync(this._seedFile)
     const jsonData = JSON.parse(data)
     return Buffer.from(jsonData.seed, 'hex')
+  }
+
+  _readRedeemScriptsFile () {
+    if (!fs.existsSync(this._redeemScriptsFile)) {
+      fs.writeFileSync(this._redeemScriptsFile, JSON.stringify([]), { flag: 'w' })
+      return []
+    }
+
+    const data = fs.readFileSync(this._redeemScriptsFile)
+    return JSON.parse(data)
+  }
+
+  updateRedeemScriptFile (rs) {
+    let data = fs.readFileSync(this._redeemScriptsFile)
+    data = JSON.parse(data)
+    data.push(rs)
+    fs.writeFileSync(this._redeemScriptsFile, JSON.stringify(data), { flag: 'w' })
   }
 
   static generateMnemonic() {
@@ -127,8 +156,8 @@ class Wallet extends EventEmitter {
     const unspentTxOutputs = await this.db.getAllUnspentTxOutputs()
 
     for (const utxo of unspentTxOutputs) {
-      // dont count pending transaction in balance
-      if (!this.pendingTxIns.has(utxo.key.slice(0, -8))) {
+      // dont count pending transaction in balance or multisig tx neither
+      if (!this.pendingTxIns.has(utxo.key.slice(0, -8)) && utxo.value.type !== ScriptTypes.PAY_TO_SCRIPT_HASH) {
         balance += BigInt(utxo.value.value)
       }
     }
@@ -139,6 +168,43 @@ class Wallet extends EventEmitter {
     }
 
     return balance
+  }
+
+  async getPaymentChannels () {
+    let paymentChannels = []
+
+    const unspentTxOutputs = await this.db.getAllUnspentTxOutputs()
+
+    for (const utxo of unspentTxOutputs) {
+      if (!this.pendingTxIns.has(utxo.value.txid) && utxo.value.type === ScriptTypes.PAY_TO_SCRIPT_HASH) {
+        const tx = await this.db.getTx(utxo.key)
+        const pkScript = Buffer.from(tx.txOuts[utxo.value.vout].pkScript)
+        const hash = getPubkeyHashFromScript(pkScript)
+        const address = pubkeyToAddress(hash, this.settings.SCRIPT_BYTE, true).toString('hex')
+        // TODO: the signed transactions sent to merchants servers
+        paymentChannels.push({ address, balance: BigInt(utxo.value.value)})
+      }
+    }
+
+    return paymentChannels
+  }
+
+  async getPaymentChannel (addressP2SH) {
+    const unspentTxOutputs = await this.db.getAllUnspentTxOutputs()
+
+    for (const utxo of unspentTxOutputs) {
+      if (!this.pendingTxIns.has(utxo.value.txid) && utxo.value.type === ScriptTypes.PAY_TO_SCRIPT_HASH) {
+        const tx = await this.db.getTx(utxo.key)
+        const pkScript = Buffer.from(tx.txOuts[utxo.value.vout].pkScript)
+        const hash = getPubkeyHashFromScript(pkScript)
+        const address = pubkeyToAddress(hash, this.settings.SCRIPT_BYTE, true).toString('hex')
+        if (address === addressP2SH) {
+          return tx
+        }
+      }
+    }
+
+    return null
   }
 
   // Find an unused address or generate a new one
@@ -169,7 +235,6 @@ class Wallet extends EventEmitter {
   }
 
   async addTxToWallet(tx) {
-
     debug(tx)
 
     // prepare BigInt conversion to string so we can save to db
@@ -206,19 +271,20 @@ class Wallet extends EventEmitter {
     // Decode pkScript and determine what kind of script it is
     for (const index in tx.txOuts) {
       const txOut = tx.txOuts[index]
+      debug(txOut)
 
       const scriptType = getScriptType(txOut.pkScript)
 
       let scriptElement
-      switch (script) {
-        case scriptTypes.PAY_TO_PUBKEY:
-          scriptElement = await _handleP2PK(txOut.pkScript)
+      switch (scriptType) {
+        case ScriptTypes.PAY_TO_PUBKEY:
+          scriptElement = await this._handleP2PK(txOut.pkScript)
           break
-        case scriptTypes.PAY_TO_PUBKEY_HASH:
-          scriptElement = await _handleP2PKH(txOut.pkScript)
+        case ScriptTypes.PAY_TO_PUBKEY_HASH:
+          scriptElement = await this._handleP2PKH(txOut.pkScript)
           break
-        case scriptTypes.PAY_TO_SCRIPT_HASH:
-          scriptElement = await _handleP2SH(txOut.pkScript)
+        case ScriptTypes.PAY_TO_SCRIPT_HASH:
+          scriptElement = await this._handleP2SH(txOut.pkScript)
           break
         default:
           debug('unknown script')
@@ -242,8 +308,10 @@ class Wallet extends EventEmitter {
         txid: tx.id,
         vout: tx.txOuts.indexOf(txOut),
         value: txOut.value,
-        type: script
+        type: scriptType
       }
+
+      debug(utxo)
 
       // save only the unspent output in 'unspent'
       await this.db.putUnspentOutput(output, utxo)
@@ -260,6 +328,7 @@ class Wallet extends EventEmitter {
   }
 
   async _handleP2PKH(script) {
+    debug('handle P2PKH')
     const pubkeyHash = extractPubkeyHashFromP2PKH(script)
     const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
 
@@ -267,6 +336,7 @@ class Wallet extends EventEmitter {
   }
 
   async _handleP2SH(script) {
+    debug('Handle P2SH tx')
     let hashScript = extractScriptHashFromP2SH(script)
     hashScript = await this.db.getRedeemScript(hashScript.toString('hex'))
 
@@ -322,6 +392,11 @@ class Wallet extends EventEmitter {
             return
           }
 
+          if (value.type == ScriptTypes.PAY_TO_SCRIPT_HASH) {
+            // If is is a multisig don't use it
+            return
+          }
+
           const data = await this.db.getTx(key)
           const txin = {
             previousOutput: { hash: value.txid, index: value.vout },
@@ -357,7 +432,7 @@ class Wallet extends EventEmitter {
     let changeAddress
     const pubkeys = await this.db.getAllPubkeys()
 
-    debug(`send! ${amount} ${fee}`)
+    debug('Initiate payment channel')
 
     for (const pubkey of pubkeys) {
       if (pubkey.isChangeAddress && !pubkey.used) {
@@ -396,9 +471,10 @@ class Wallet extends EventEmitter {
     const multisigScript = serializePayToMultisigWithTimeLockScript([unusedPubkey.toString('hex'), toPublicKey], blocksLock)
     const p2sh = createPayToHash(multisigScript)
 
-    // TODO: save address and maybe add it to the filter
     debug(`P2SH script : ${multisigScript.toString('hex')}`)
     debug(`P2SH hash script : ${p2sh.hashScript.toString('hex')}`)
+    // save to file for safety
+    this.updateRedeemScriptFile({hash: p2sh.hashScript.toString('hex'), script: multisigScript.toString('hex')})
 
     transaction.txOuts[0] = {
       value: amount,
@@ -459,7 +535,40 @@ class Wallet extends EventEmitter {
 
     // use raw transaction to create refund transaction
 
-    return { address: pubkeyToAddress(p2sh.hashScript, this.settings.SCRIPT_BYTE, true), rawTransaction: rawTransaction }
+    return { address: pubkeyToAddress(p2sh.hashScript, this.settings.SCRIPT_BYTE, true), rawTransaction: rawTransaction, hashScript: p2sh.hashScript }
+  }
+
+  async createMicroPayment(amount, p2shAddress, fee) {
+    let changeAddress
+    const pubkeys = await this.db.getAllPubkeys()
+
+    debug(`sign micro transaction! ${amount} ${p2shAddress} ${fee}`)
+
+    // REVIEW: the transaction is not being published directly so it might be used twice.
+    for (const pubkey of pubkeys) {
+      if (pubkey.isChangeAddress && !pubkey.used) {
+        changeAddress = pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE)
+        break
+      }
+    }
+
+    if (!changeAddress) {
+      changeAddress = await this.generateChangeAddress()
+    }
+
+    const transaction = {
+      version: 1,
+      txInCount: 0,
+      txIns: [],
+      txOutCount: 2,
+      txOuts: [],
+      locktime: 0,
+      hashCodeType: 1
+    }
+
+    const p2shTx = await this.getPaymentChannel(p2shAddress)
+    debug(p2shTx)
+
   }
 
   async send(amount, to, fee) {
@@ -561,6 +670,7 @@ class Wallet extends EventEmitter {
     debug(rawTransaction.toString('hex'))
     return rawTransaction
   }
+
 }
 
 module.exports = Wallet

@@ -56,12 +56,24 @@ async function app (args) {
   const initiatePaymentChannel = async (amount, toPublicKey, blocksLock) => { 
     // TODO: calculate fee properly
     const fee = MIN_FEE * SATOSHIS
-    let { rawTransaction, address } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
+    // TODO: Get public key here from Bob
+    let { rawTransaction, address, hashScript } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
+    await spvnode.updateFilter(hashScript)
     spvnode.sendRawTransaction(rawTransaction)
+    // TODO: Send to BOB too
     debug('SENT TO P2SH !')
     const newBalance = await wallet.getBalance()
     store.setBalance(newBalance)
     return address
+  }
+
+  // Create a micro payment transaction
+  const createMicroPayment = async (amount, address) => {
+    const fee = MIN_FEE * SATOSHIS
+
+    debug('Create micro transaction !')
+    await wallet.createMicroPayment(amount, address, fee)
+
   }
 
   // Create Interface
@@ -69,7 +81,8 @@ async function app (args) {
     store,
     getAddress,
     sendTransaction,
-    initiatePaymentChannel
+    initiatePaymentChannel,
+    createMicroPayment
   })
 
   // Do we have seed already ?
@@ -91,6 +104,12 @@ async function app (args) {
   wallet.getBalance()
     .then(function (balance) {
       store.setBalance(balance)
+    })
+  
+  wallet.getPaymentChannels()
+    .then(function (paymentChannels) {
+      debug(paymentChannels)
+      store.setPaymentChannels(paymentChannels)
     })
 
   // Initiate wallet
@@ -115,6 +134,11 @@ async function app (args) {
     wallet.getBalance()
       .then(function (newBalance) {
         store.setBalance(newBalance)
+      })
+
+    wallet.getPaymentChannels()
+      .then(function (paymentChannels) {
+        store.setPaymentChannels(paymentChannels)
       })
   })
 

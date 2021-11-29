@@ -84,7 +84,14 @@ class WalletDB {
   }
 
   getRedeemScript (scriptHash) {
-    return this.redeemScripts.get(scriptHash)
+    return new Promise((resolve, reject) => {
+      this.redeemScripts.get(scriptHash, function (err, value) {
+        if (err && err.type !== 'NotFoundError') { reject(err); return }
+        if (err && err.type === 'NotFoundError') { resolve(); return }
+
+        resolve(value)
+      })
+    })
   }
 
   putRedeemScript (hash, script) {

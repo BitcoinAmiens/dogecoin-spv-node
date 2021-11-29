@@ -13,6 +13,7 @@ class MainScreen extends Screen {
       typeof args.displayNewAddressScreen !== 'function' ||
       typeof args.displaySendDogeScreen !== 'function' ||
       typeof args.displayPaymentChannelScreen !== 'function' ||
+      typeof args.displayMicroPaymentScreen !== 'function' ||
       typeof args.stop !== 'function'
     ) {
       throw new Error("You need to define a 'store' object.")
@@ -22,6 +23,7 @@ class MainScreen extends Screen {
     this.displayNewAddressScreen = args.displayNewAddressScreen
     this.displaySendDogeScreen = args.displaySendDogeScreen
     this.displayPaymentChannelScreen = args.displayPaymentChannelScreen
+    this.displayMicroPaymentScreen = args.displayMicroPaymentScreen
     this.stop = args.stop
 
     this._handleChangedEvent = this._handleChangedEvent.bind(this)
@@ -55,21 +57,28 @@ class MainScreen extends Screen {
         this.store.removeListener('changed', this._handleChangedEvent)
         this.displayPaymentChannelScreen()
         break
+      case KEYS.NUM_KEY_4:
+        this.store.removeListener('changed', this._handleChangedEvent)
+        this.displayMicroPaymentScreen()
+        break
     }
   }
 
-  format (height = 0, bestHeight = 0, hash = null, numberOfPeers = 0, tips = new Map(), merkleHeight = 0, balance = 0n) {
-    const report = process.resourceUsage()
-    const rss = Math.floor(process.memoryUsage().rss / (1000 * 1000))
-
+  format (height = 0, bestHeight = 0, hash = null, numberOfPeers = 0, tips = new Map(), merkleHeight = 0, balance = 0n, paymentChannels = []) {
     // TODO: seperate in sublayout
 
+    let paymentChannelsSection = '    NONE'
+    if (paymentChannels.length > 0) {
+      paymentChannelsSection = ''
+      for (let pc of paymentChannels) {
+        paymentChannelsSection += `    ${pc.address} ---> ${pc.balance / SATOSHIS} Ð                  \n`
+      }
+      // space padding
+      paymentChannelsSection += '                                         '
+    }
+
+    // WARNING!!! NEED TO PAD WITH SPACES
     const layout = `
-================ Process Usage Report ================
-
-    fsRead: ${report.fsRead}  fsWrite: ${report.fsWrite}
-    Memory usage: ${rss} MB
-
 ================ SPV node ============================
 
     Height headers: ${height}/${bestHeight}
@@ -80,15 +89,20 @@ class MainScreen extends Screen {
 
 ================ Wallet =============================
 
-    Balance: ${balance / SATOSHIS} Ð
+    Balance: ${balance / SATOSHIS} Ð                 
 
+================ Payment Channels ===================
+                                                     
+${paymentChannelsSection}                        
+                                                     
 ================ Menu ===============================
-
-    1. Generate a new address
-    2. Send dogecoins
-    3. Create payment channel
-    
-    0. Quit
+                                                     
+    1. Generate a new address                        
+    2. Send dogecoins                                
+    3. Create payment channel                        
+    ${paymentChannelsSection.length > 0 ? '4. Make a payment on payment channel': null}
+                                                     
+    0. Quit                                          
 `
     this.numberOfLines = layout.split('\n').length
 
@@ -103,6 +117,7 @@ class MainScreen extends Screen {
 
     //  TODO: properly get position of each value and only update it instead of the all screen
     process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines - 1), () => {
+      debug(this.store.paymentChannels)
       process.stdout.write(this.format(
         this.store.height,
         this.store.bestHeight,
@@ -110,7 +125,8 @@ class MainScreen extends Screen {
         this.store.getNumPeers(),
         this.store.tips,
         this.store.merkleHeight,
-        this.store.balance
+        this.store.balance,
+        this.store.paymentChannels
       ))
 
       // Unlock interface
