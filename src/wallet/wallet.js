@@ -30,7 +30,7 @@ const {
   extractScriptHashFromP2SH,
 } = require('./utils')
 
-const { MissingSeedError, NotEnoughtKeysGenerated } = require('./errors')
+const { MissingSeedError, NotEnoughtKeysGenerated, BalanceTooLow } = require('./errors')
 const { DEFAULT_ENCODING } = require('crypto')
 
 // HD wallet for dogecoin
@@ -78,10 +78,10 @@ class Wallet extends EventEmitter {
     // Sync with redeemscripts.json
     const redeemScripts = this._readRedeemScriptsFile()
     for (let rs of redeemScripts) {
-      let result = await this.db.getRedeemScript(rs.hash)
+      let result = await this.db.getRedeemScript(rs.key)
       if (!result) {
         // If missing we add it
-        await this.db.putRedeemScript(rs.hash, rs.script)
+        await this.db.putRedeemScript(rs.key, rs.value)
       }
     }
 
@@ -122,6 +122,11 @@ class Wallet extends EventEmitter {
     data = JSON.parse(data)
     data.push(rs)
     fs.writeFileSync(this._redeemScriptsFile, JSON.stringify(data), { flag: 'w' })
+  }
+
+  saveRedeemScriptData (key, value) {
+    this.updateRedeemScriptFile({key, value})
+    this.db.putRedeemScript(key, value)
   }
 
   static generateMnemonic() {
@@ -459,7 +464,7 @@ class Wallet extends EventEmitter {
 
     if (balance < amount) {
       debug('Not enought funds!')
-      throw new Error('Not enought funds')
+      throw new BalanceTooLow()
     }
 
     const { txIns, total } = await this._collectInputsForAmount(amount)
@@ -473,8 +478,8 @@ class Wallet extends EventEmitter {
 
     debug(`P2SH script : ${multisigScript.toString('hex')}`)
     debug(`P2SH hash script : ${p2sh.hashScript.toString('hex')}`)
-    // save to file for safety
-    this.updateRedeemScriptFile({hash: p2sh.hashScript.toString('hex'), script: multisigScript.toString('hex')})
+
+    this.saveRedeemScriptData(p2sh.hashScript.toString('hex'), {script: multisigScript.toString('hex'), recipient: toPublicKey})
 
     transaction.txOuts[0] = {
       value: amount,
@@ -560,7 +565,7 @@ class Wallet extends EventEmitter {
       version: 1,
       txInCount: 0,
       txIns: [],
-      txOutCount: 2,
+      txOutCount: 0,
       txOuts: [],
       locktime: 0,
       hashCodeType: 1
@@ -568,6 +573,30 @@ class Wallet extends EventEmitter {
 
     const p2shTx = await this.getPaymentChannel(p2shAddress)
     debug(p2shTx)
+
+    // Verify we have enought fund
+    if (p2shTx.txOuts[0].value < amount + fee) {
+      throw new BalanceTooLow()
+    }
+
+    transaction.txIns.push({
+      previousOutput: { hash: p2shTx.id, index: 0 },
+      signature: p2shTx.txOuts[0].pkScript,
+      sequence: 4294967294
+    })
+
+    transaction.txInCount = transaction.txIns.length
+
+    const hashScript = extractScriptHashFromP2SH(Buffer.from(p2shTx.txOuts[0].pkScript, 'hex'))
+    debug(hashScript)
+
+    const redeemScript = await this.db.getRedeemScript(hashScript.toString('hex'))
+    debug(redeemScript)
+
+    const to = pubkeyToAddress(Buffer.from(redeemScript.recipient, 'hex'), this.settings.NETWORK_BYTE)
+    const pkscript = serializePayToPubkeyHashScript(to)
+
+    debug(pkscript)
 
   }
 
@@ -601,8 +630,7 @@ class Wallet extends EventEmitter {
     const balance = await this.getBalance()
 
     if (balance < amount) {
-      debug('Not enought funds!')
-      throw new Error('Not enought funds')
+      throw new BalanceTooLow()
     }
 
     const { txIns, total } = await this._collectInputsForAmount(amount)

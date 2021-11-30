@@ -37,7 +37,7 @@ class PaymentChannelScreen extends Screen {
   }
 
   update() {
-    const p2shline = this.p2shAddress ? `P2SH address : ${this.p2shAddress}` : `Press "Enter" to create a payment channel with ${HOST}`
+    const p2shline = this.p2shAddress ? `P2SH address : ${this.p2shAddress}                  ` : `Press "Enter" to create a payment channel with ${HOST}`
 
     const layout = `
 ================ PAYMENT CHANNEL ================

@@ -94,8 +94,8 @@ class WalletDB {
     })
   }
 
-  putRedeemScript (hash, script) {
-    return this.redeemScripts.put(hash, script)
+  putRedeemScript (hash, value) {
+    return this.redeemScripts.put(hash, value)
   }
 }
 

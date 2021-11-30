@@ -41,7 +41,7 @@ class MicroPaymentScreen extends Screen {
 ================ MICRO PAYMENT ================
 
   Amount: 2 Ð
-  To: ${this.address}
+  Payment channel address: ${this.address}
 
   Press "Enter" to make payment
   Press "Return" to return to main screen
