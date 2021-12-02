@@ -72,8 +72,14 @@ async function app (args) {
     const fee = MIN_FEE * SATOSHIS
 
     debug('Create micro transaction !')
-    await wallet.createMicroPayment(amount, address, fee)
+    const commitmentTx = await wallet.createMicroPayment(amount, address, fee)
 
+    // Send this to Bob
+    debug(commitmentTx.toString('hex'))
+    const paymentChannels = await wallet.getPaymentChannels()
+    store.setPaymentChannels(paymentChannels)
+
+    return
   }
 
   // Create Interface

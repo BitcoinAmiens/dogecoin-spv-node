@@ -8,6 +8,7 @@ class WalletDB {
     this.txs = level(path.join(dataFolder, subPath, 'tx'), { valueEncoding: 'json' })
     this.pubkeys = level(path.join(dataFolder, subPath, 'pubkey'), { valueEncoding: 'json' })
     this.redeemScripts = level(path.join(dataFolder, subPath, 'redeemscript'), { valueEncoding: 'json' })
+    this.commitments = level(path.join(dataFolder, subPath, 'commitment'), { valueEncoding: 'json' })
   }
 
   // Get all the UTXO from the database
@@ -96,6 +97,24 @@ class WalletDB {
 
   putRedeemScript (hash, value) {
     return this.redeemScripts.put(hash, value)
+  }
+
+  getCommitment (hash) {
+    return new Promise((resolve, reject) => {
+      this.commitments.get(hash, function (err, tx) {
+        if (err && err.type !== 'NotFoundError') { reject(err); return }
+        if (err && err.type === 'NotFoundError') { resolve(); return }
+
+        resolve(tx)
+      })
+    })
+  }
+
+  putCommitment (hash, tx) {
+    for (let i = 0; i < tx.txOuts.length; i++) {
+      tx.txOuts[i].value = tx.txOuts[i].value.toString()
+    }
+    return this.commitments.put(hash, tx)
   }
 }
 

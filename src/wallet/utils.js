@@ -2,9 +2,16 @@ const bs58check = require('bs58check')
 const RIPEMD160 = require('ripemd160')
 const crypto = require('crypto')
 const bip65 = require('bip65')
+const secp256k1 = require('secp256k1')
 
 const CompactSize = require('../utils/compactSize')
 const { ScriptTypes } = require('./scripts')
+
+function sign(message, privatekey) {
+  let signature = secp256k1.ecdsaSign(message, privatekey)
+  signature = secp256k1.signatureExport(signature.signature)
+  return Buffer.from(signature)
+}
 
 function hashing (buf) {
   let hash = crypto.createHash('sha256').update(buf).digest()
@@ -216,6 +223,7 @@ function getScriptType (script) {
 }
 
 module.exports = {
+  sign,
   pubkeyToPubkeyHash,
   pubkeyToAddress,
   prepareTransactionToSign,

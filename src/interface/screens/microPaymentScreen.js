@@ -29,7 +29,7 @@ class MicroPaymentScreen extends Screen {
   keyPressed(key) {
     switch (key) {
       case KEYS.ENTER:
-        this.createMicroPayment(2n, this.address)
+        this.createMicroPayment(2n*SATOSHIS, this.address)
         return false
       default:
         return true

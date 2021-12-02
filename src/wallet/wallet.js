@@ -28,6 +28,7 @@ const {
   extractPubkeyHashFromP2PK,
   extractPubkeyHashFromP2PKH,
   extractScriptHashFromP2SH,
+  sign,
 } = require('./utils')
 
 const { MissingSeedError, NotEnoughtKeysGenerated, BalanceTooLow } = require('./errors')
@@ -186,8 +187,18 @@ class Wallet extends EventEmitter {
         const pkScript = Buffer.from(tx.txOuts[utxo.value.vout].pkScript)
         const hash = getPubkeyHashFromScript(pkScript)
         const address = pubkeyToAddress(hash, this.settings.SCRIPT_BYTE, true).toString('hex')
-        // TODO: the signed transactions sent to merchants servers
-        paymentChannels.push({ address, balance: BigInt(utxo.value.value)})
+
+        debug(hash.toString('hex'))
+        const commitment = await this.db.getCommitment(hash.toString('hex'))
+        let precedentCommitmentValue = 0n
+        if (commitment) {
+          debug('Got one commitment')
+          precedentCommitmentValue = BigInt(commitment.txOuts[0].value)
+        }
+
+        const balance = BigInt(utxo.value.value) - precedentCommitmentValue
+
+        paymentChannels.push({ address, balance })
       }
     }
 
@@ -479,7 +490,7 @@ class Wallet extends EventEmitter {
     debug(`P2SH script : ${multisigScript.toString('hex')}`)
     debug(`P2SH hash script : ${p2sh.hashScript.toString('hex')}`)
 
-    this.saveRedeemScriptData(p2sh.hashScript.toString('hex'), {script: multisigScript.toString('hex'), recipient: toPublicKey})
+    this.saveRedeemScriptData(p2sh.hashScript.toString('hex'), {script: multisigScript.toString('hex'), recipient: toPublicKey, pubkey: unusedPubkey.toString('hex')})
 
     transaction.txOuts[0] = {
       value: amount,
@@ -514,14 +525,12 @@ class Wallet extends EventEmitter {
 
       const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
 
-      const signature = secp256k1.ecdsaSign(Buffer.from(rawTransactionHash, 'hex'), key.privateKey)
+      const signature = sign(rawTransactionHash, key.privateKey)
 
-      const signatureDer = Buffer.from(secp256k1.signatureExport(signature.signature))
-
-      const signatureCompactSize = CompactSize.fromSize(signatureDer.length + 1)
+      const signatureCompactSize = CompactSize.fromSize(signature.length + 1)
       const publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
 
-      const scriptSig = signatureCompactSize.toString('hex') + signatureDer.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
+      const scriptSig = signatureCompactSize.toString('hex') + signature.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
 
       transaction.txIns[txInIndex].signatureSize = CompactSize.fromSize(Buffer.from(scriptSig).length, 'hex')
       transaction.txIns[txInIndex].signature = Buffer.from(scriptSig, 'hex')
@@ -565,39 +574,94 @@ class Wallet extends EventEmitter {
       version: 1,
       txInCount: 0,
       txIns: [],
-      txOutCount: 0,
+      txOutCount: 2,
       txOuts: [],
       locktime: 0,
       hashCodeType: 1
     }
 
     const p2shTx = await this.getPaymentChannel(p2shAddress)
-    debug(p2shTx)
+    const total = BigInt(p2shTx.txOuts[0].value)
 
-    // Verify we have enought fund
-    if (p2shTx.txOuts[0].value < amount + fee) {
-      throw new BalanceTooLow()
-    }
 
     transaction.txIns.push({
       previousOutput: { hash: p2shTx.id, index: 0 },
-      signature: p2shTx.txOuts[0].pkScript,
+      signature: Buffer.from(p2shTx.txOuts[0].pkScript.data),
       sequence: 4294967294
     })
 
     transaction.txInCount = transaction.txIns.length
 
     const hashScript = extractScriptHashFromP2SH(Buffer.from(p2shTx.txOuts[0].pkScript, 'hex'))
-    debug(hashScript)
+
+    const latestCommitment = await this.db.getCommitment(hashScript.toString('hex'))
+    let precedentCommitmentAmount = 0n
+    if (latestCommitment) {
+      precedentCommitmentAmount = BigInt(latestCommitment.txOuts[0].value)
+    }
+
+
+    // Verify we have enought fund
+    if (total < amount + precedentCommitmentAmount + fee) {
+      debug(`Total available : ${total}, Precedent Commitment: ${precedentCommitmentAmount}`)
+      throw new BalanceTooLow()
+    }
 
     const redeemScript = await this.db.getRedeemScript(hashScript.toString('hex'))
-    debug(redeemScript)
 
     const to = pubkeyToAddress(Buffer.from(redeemScript.recipient, 'hex'), this.settings.NETWORK_BYTE)
-    const pkscript = serializePayToPubkeyHashScript(to)
+    let pkScript = serializePayToPubkeyHashScript(to)
 
-    debug(pkscript)
+    transaction.txOuts[0] = {
+      value: amount + precedentCommitmentAmount,
+      pkScriptSize: pkScript.length,
+      pkScript 
+    }
 
+    // If we have some change that need to be sent back
+    if (total > amount + fee) {
+      pkScript = serializePayToPubkeyHashScript(changeAddress)
+      transaction.txOuts[1] = {
+        value: total - amount - fee,
+        pkScriptSize: pkScript.length,
+        pkScript
+      }
+    }
+
+    for (let txInIndex = 0; txInIndex < transaction.txInCount; txInIndex++) {
+      const rawUnsignedTransaction = prepareTransactionToSign(transaction, txInIndex)
+      const rawTransactionHash = doubleHash(rawUnsignedTransaction)
+
+      const pubkeyHash = pubkeyToPubkeyHash(Buffer.from(redeemScript.pubkey, 'hex'))
+      const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
+
+      const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
+
+      const signature = sign(rawTransactionHash, key.privateKey)
+
+      const signatureCompactSize = CompactSize.fromSize(signature.length + 1)
+      const publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
+
+      const scriptSig = signatureCompactSize.toString('hex') + signature.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
+
+      transaction.txIns[txInIndex].signatureSize = CompactSize.fromSize(Buffer.from(scriptSig).length, 'hex')
+      transaction.txIns[txInIndex].signature = Buffer.from(scriptSig, 'hex')
+
+    }
+
+    delete transaction.hashCodeType
+
+    const rawTransaction = encodeRawTransaction(transaction)
+
+    // TODO: Adding this to pending txs should be done once it has been successfully broadcasted
+    if (transaction.txOuts[1]) {
+      this.pendingTxOuts.set(doubleHash(rawTransaction).toString('hex'), transaction.txOuts[1])
+    }
+
+    // Save latest commitment
+    await this.db.putCommitment(hashScript.toString('hex'), transaction)
+
+    return rawTransaction
   }
 
   async send(amount, to, fee) {
@@ -659,6 +723,7 @@ class Wallet extends EventEmitter {
 
     transaction.txOutCount = transaction.txOuts.length
 
+
     debug('Tx in counts : ', transaction.txInCount)
 
     for (let txInIndex = 0; txInIndex < transaction.txInCount; txInIndex++) {
@@ -673,14 +738,12 @@ class Wallet extends EventEmitter {
 
       const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
 
-      const signature = secp256k1.ecdsaSign(Buffer.from(rawTransactionHash, 'hex'), key.privateKey)
+      const signature = sign(rawTransactionHash, key.privateKey)
 
-      const signatureDer = Buffer.from(secp256k1.signatureExport(signature.signature))
-
-      const signatureCompactSize = CompactSize.fromSize(signatureDer.length + 1)
+      const signatureCompactSize = CompactSize.fromSize(signature.length + 1)
       const publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
 
-      const scriptSig = signatureCompactSize.toString('hex') + signatureDer.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
+      const scriptSig = signatureCompactSize.toString('hex') + signature.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
 
       transaction.txIns[txInIndex].signatureSize = CompactSize.fromSize(Buffer.from(scriptSig).length, 'hex')
       transaction.txIns[txInIndex].signature = Buffer.from(scriptSig, 'hex')
