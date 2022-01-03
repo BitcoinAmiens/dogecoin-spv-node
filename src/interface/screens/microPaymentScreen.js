@@ -3,6 +3,8 @@ const debug = require('debug')('paymentChannelScreen')
 const KEYS = require('../keys')
 const { SATOSHIS } = require('../../constants')
 
+const HOST = 'http://127.0.0.1:5000'
+
 /*
   Micro Payment Screen
 */
@@ -20,8 +22,13 @@ class MicroPaymentScreen extends Screen {
       throw new Error('Missing "createMicroPayment" function.')
     }
 
+    if (typeof args.displayMainScreen !== 'function') {
+      throw new Error('Missing "displayMainScreen" function.')
+    }
+
     this.address = args.address
     this.createMicroPayment = args.createMicroPayment
+    this.displayMainScreen = args.displayMainScreen
 
     this.update()
   }
@@ -29,11 +36,16 @@ class MicroPaymentScreen extends Screen {
   keyPressed(key) {
     switch (key) {
       case KEYS.ENTER:
-        this.createMicroPayment(2n*SATOSHIS, this.address)
+        this.sendPaymentChannel()
         return false
       default:
         return true
     }
+  }
+
+  async sendPaymentChannel () {
+    this.displayMainScreen()
+    await this.createMicroPayment(2n*SATOSHIS, this.address, HOST)
   }
 
   update() {

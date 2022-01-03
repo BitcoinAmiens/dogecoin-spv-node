@@ -32,6 +32,7 @@ class MainScreen extends Screen {
   }
 
   _handleChangedEvent () {
+    debug('Changed!')
     this.update()
   }
 
@@ -117,7 +118,6 @@ ${paymentChannelsSection}
 
     //  TODO: properly get position of each value and only update it instead of the all screen
     process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines - 1), () => {
-      debug(this.store.paymentChannels)
       process.stdout.write(this.format(
         this.store.height,
         this.store.bestHeight,

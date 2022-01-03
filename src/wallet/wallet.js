@@ -549,7 +549,13 @@ class Wallet extends EventEmitter {
 
     // use raw transaction to create refund transaction
 
-    return { address: pubkeyToAddress(p2sh.hashScript, this.settings.SCRIPT_BYTE, true), rawTransaction: rawTransaction, hashScript: p2sh.hashScript }
+    return {
+      address: pubkeyToAddress(p2sh.hashScript, this.settings.SCRIPT_BYTE, true),
+      rawTransaction: rawTransaction,
+      transaction,
+      hashScript: p2sh.hashScript,
+      redeemScript: multisigScript
+    }
   }
 
   async createMicroPayment(amount, p2shAddress, fee) {
@@ -628,40 +634,36 @@ class Wallet extends EventEmitter {
       }
     }
 
-    for (let txInIndex = 0; txInIndex < transaction.txInCount; txInIndex++) {
-      const rawUnsignedTransaction = prepareTransactionToSign(transaction, txInIndex)
-      const rawTransactionHash = doubleHash(rawUnsignedTransaction)
+    // Micro payment transaction as always only 1 txin which is our p2sh tx
+    const rawUnsignedTransaction = prepareTransactionToSign(transaction, 0)
+    const rawTransactionHash = doubleHash(rawUnsignedTransaction)
 
-      const pubkeyHash = pubkeyToPubkeyHash(Buffer.from(redeemScript.pubkey, 'hex'))
-      const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
+    const pubkeyHash = pubkeyToPubkeyHash(Buffer.from(redeemScript.pubkey, 'hex'))
+    const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
 
-      const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
+    const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
 
-      const signature = sign(rawTransactionHash, key.privateKey)
+    const signature = sign(rawTransactionHash, key.privateKey)
 
-      const signatureCompactSize = CompactSize.fromSize(signature.length + 1)
-      const publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
+    /*const signatureCompactSize = CompactSize.fromSize(signature.length + 1)
+    const publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
 
-      const scriptSig = signatureCompactSize.toString('hex') + signature.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
+    const scriptSig = signatureCompactSize.toString('hex') + signature.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
 
-      transaction.txIns[txInIndex].signatureSize = CompactSize.fromSize(Buffer.from(scriptSig).length, 'hex')
-      transaction.txIns[txInIndex].signature = Buffer.from(scriptSig, 'hex')
+    transaction.txIns[0].signatureSize = CompactSize.fromSize(Buffer.from(scriptSig).length, 'hex')
+    transaction.txIns[0].signature = Buffer.from(scriptSig, 'hex')*/
 
-    }
+    transaction.txIns[0].signatureSize = CompactSize.fromSize(0, 'hex')
+    transaction.txIns[0].signature = Buffer.alloc(0)
 
     delete transaction.hashCodeType
 
-    const rawTransaction = encodeRawTransaction(transaction)
-
-    // TODO: Adding this to pending txs should be done once it has been successfully broadcasted
-    if (transaction.txOuts[1]) {
-      this.pendingTxOuts.set(doubleHash(rawTransaction).toString('hex'), transaction.txOuts[1])
-    }
+    const commitmentTx = encodeRawTransaction(transaction)
 
     // Save latest commitment
     await this.db.putCommitment(hashScript.toString('hex'), transaction)
 
-    return rawTransaction
+    return { commitmentTx, signature }
   }
 
   async send(amount, to, fee) {

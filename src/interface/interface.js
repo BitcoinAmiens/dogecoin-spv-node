@@ -143,12 +143,11 @@ class Interface extends EventEmitter {
     process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines - 1), async () => {
       process.stdout.write(terminalStyle.CLEAR)
 
-      debug(this.store.paymentChannels[0])
-
       // Update screen
       this.screen = new MicroPaymentScreen({
         createMicroPayment: this.createMicroPayment,
-        address: this.store.paymentChannels[0].address
+        address: this.store.paymentChannels[0].address,
+        displayMainScreen: this.displayMainScreen.bind(this)
       })
     })
   }

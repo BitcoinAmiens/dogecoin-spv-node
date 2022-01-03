@@ -1,6 +1,7 @@
 const SPVNode = require('./spvnode')
 const Wallet = require('./wallet')
 const { getSettings } = require('./settings')
+const paymentchannel = require('./paymentchannel')
 const networks = require('./network')
 const { setupLog } = require('./debug')
 const debug = require('debug')('app')
@@ -53,29 +54,38 @@ async function app (args) {
   const getAddress = async () => { return await wallet.getAddress() }
 
   // Start payment channel
-  const initiatePaymentChannel = async (amount, toPublicKey, blocksLock) => { 
+  const initiatePaymentChannel = async (amount, urlPaymentChannel, blocksLock) => { 
     // TODO: calculate fee properly
     const fee = MIN_FEE * SATOSHIS
-    // TODO: Get public key here from Bob
-    let { rawTransaction, address, hashScript } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
+    const toPublicKey = await paymentchannel.getPublicKey(urlPaymentChannel)
+
+    let { rawTransaction, address, hashScript, redeemScript } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
+    debug(hashScript.toString('hex'))
     await spvnode.updateFilter(hashScript)
     spvnode.sendRawTransaction(rawTransaction)
-    // TODO: Send to BOB too
+
+    // Announce payment channel
+    const result = await paymentchannel.announce(urlPaymentChannel, redeemScript.toString('hex'))
+    debug(result)
+
     debug('SENT TO P2SH !')
     const newBalance = await wallet.getBalance()
     store.setBalance(newBalance)
+
+
     return address
   }
 
   // Create a micro payment transaction
-  const createMicroPayment = async (amount, address) => {
+  const createMicroPayment = async (amount, address, urlPaymentChannel) => {
     const fee = MIN_FEE * SATOSHIS
 
     debug('Create micro transaction !')
-    const commitmentTx = await wallet.createMicroPayment(amount, address, fee)
+    const { commitmentTx, signature } = await wallet.createMicroPayment(amount, address, fee)
 
     // Send this to Bob
-    debug(commitmentTx.toString('hex'))
+    const result = await paymentchannel.payment(urlPaymentChannel, commitmentTx.toString('hex'), signature.toString('hex'), 1)
+
     const paymentChannels = await wallet.getPaymentChannels()
     store.setPaymentChannels(paymentChannels)
 

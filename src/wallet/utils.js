@@ -13,6 +13,7 @@ function sign(message, privatekey) {
   return Buffer.from(signature)
 }
 
+
 function hashing (buf) {
   let hash = crypto.createHash('sha256').update(buf).digest()
   hash = new RIPEMD160().update(hash).digest()
