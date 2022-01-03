@@ -3,7 +3,7 @@ const debug = require('debug')('paymentChannelScreen')
 const KEYS = require('../keys')
 const { SATOSHIS } = require('../../constants')
 
-const HOST = 'http://127.0.0.1:5000'
+const HOST = 'https://shibe.technology'
 
 /*
   Initiate Payment Channel Screen
