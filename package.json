@@ -50,6 +50,7 @@
   ],
   "devDependencies": {
     "ava": "^3.12.1",
+    "bitcoinjs-lib": "^5.2.0",
     "caxa": "^1.0.0",
     "dockerode": "^3.3.0",
     "nodemon": "^2.0.12",
@@ -58,8 +59,11 @@
     "vuepress": "^1.8.2"
   },
   "dependencies": {
+    "axios": "^0.24.0",
+    "bip174": "^2.0.1",
     "bip32": "^2.0.3",
     "bip39": "^3.0.4",
+    "bip65": "^1.0.3",
     "bitcoin-merkle-proof": "^0.1.0",
     "bloom-filter": "^0.2.0",
     "bs58": "^4.0.1",
@@ -69,7 +73,7 @@
     "ecdsa": "^0.7.0",
     "exp-net": "0.0.1",
     "level": "^7.0.0",
-    "meow": "^6.1.0",
+    "meow": "^10.1.2",
     "multicast-dns": "^7.0.0",
     "promise.any": "^2.0.2",
     "ripemd160": "^2.0.1",

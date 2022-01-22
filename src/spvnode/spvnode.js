@@ -187,15 +187,15 @@ class SPVNode extends EventEmitter {
     peer.sendGetAddr()
   }
 
-  updateFilter (element) {
+  async updateFilter (element) {
     const buf = Buffer.from(element, 'hex')
     let inv = ''
     for (let i = 0; i < buf.length; i++) {
       inv = buf.slice(i, i + 1).toString('hex') + inv
     }
-    this.peers.forEach(function (peer) {
-      peer.sendFilterAdd(element)
-    })
+    for (const peer of this.peers) {
+      await peer.sendFilterAdd(element)
+    }
   }
 
   updateHeight (newHeight, hash) {

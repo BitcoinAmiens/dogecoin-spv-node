@@ -133,19 +133,11 @@ class Peer extends EventEmitter {
     this.queried = true
   }
 
-  sendFilterAdd (element) {
+  async sendFilterAdd (element) {
     // TODO: using 'filteradd' has big privacy issues !
     const payload = filteradd.encodeFilterAdd(Buffer.from(element, 'hex'))
     const filteraddMessage = packet.preparePacket('filteradd', payload, this.magicBytes)
-    return new Promise((resolve, reject) => {
-      this.socket.write(filteraddMessage, function (err) {
-        if (err) {
-          reject(err)
-          return
-        }
-        resolve()
-      })
-    })
+    await this.socket.write(filteraddMessage)
   }
 
   async sendRawTransaction (rawTransaction) {

@@ -1,6 +1,7 @@
 const SPVNode = require('./spvnode')
 const Wallet = require('./wallet')
 const { getSettings } = require('./settings')
+const paymentchannel = require('./paymentchannel')
 const networks = require('./network')
 const { setupLog } = require('./debug')
 const debug = require('debug')('app')
@@ -52,11 +53,49 @@ async function app (args) {
   // Will be needed in the interface
   const getAddress = async () => { return await wallet.getAddress() }
 
+  // Start payment channel
+  const initiatePaymentChannel = async (amount, urlPaymentChannel, blocksLock) => {
+    // TODO: calculate fee properly
+    const fee = MIN_FEE * SATOSHIS
+    const toPublicKey = await paymentchannel.getPublicKey(urlPaymentChannel)
+
+    const { rawTransaction, address, hashScript, redeemScript } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
+    debug(hashScript.toString('hex'))
+    await spvnode.updateFilter(hashScript)
+    spvnode.sendRawTransaction(rawTransaction)
+
+    // Announce payment channel
+    const result = await paymentchannel.announce(urlPaymentChannel, redeemScript.toString('hex'))
+    debug(result)
+
+    debug('SENT TO P2SH !')
+    const newBalance = await wallet.getBalance()
+    store.setBalance(newBalance)
+
+    return address
+  }
+
+  // Create a micro payment transaction
+  const createMicroPayment = async (amount, address, urlPaymentChannel) => {
+    const fee = MIN_FEE * SATOSHIS
+
+    debug('Create micro transaction !')
+    const { commitmentTx, signature } = await wallet.createMicroPayment(amount, address, fee)
+
+    // Send this to Bob
+    await paymentchannel.payment(urlPaymentChannel, commitmentTx.toString('hex'), signature.toString('hex'), 1)
+
+    const paymentChannels = await wallet.getPaymentChannels()
+    store.setPaymentChannels(paymentChannels)
+  }
+
   // Create Interface
   const ui = new Interface({
     store,
     getAddress,
-    sendTransaction
+    sendTransaction,
+    initiatePaymentChannel,
+    createMicroPayment
   })
 
   // Do we have seed already ?
@@ -78,6 +117,12 @@ async function app (args) {
   wallet.getBalance()
     .then(function (balance) {
       store.setBalance(balance)
+    })
+
+  wallet.getPaymentChannels()
+    .then(function (paymentChannels) {
+      debug(paymentChannels)
+      store.setPaymentChannels(paymentChannels)
     })
 
   // Initiate wallet
@@ -102,6 +147,11 @@ async function app (args) {
     wallet.getBalance()
       .then(function (newBalance) {
         store.setBalance(newBalance)
+      })
+
+    wallet.getPaymentChannels()
+      .then(function (paymentChannels) {
+        store.setPaymentChannels(paymentChannels)
       })
   })
 

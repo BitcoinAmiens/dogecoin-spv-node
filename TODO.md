@@ -28,3 +28,7 @@
 - [ ] Make it easier to add new screen in Interface
 - [ ] Writing on the terminal screen should only be happening in Interface.
 - [ ] Create an executable (using pkg)
+
+Payment Channel
+- [ ] Save micro tx for internal accounting
+- [ ] Having a target pubkey and a p2sh pubkey
