@@ -54,12 +54,12 @@ async function app (args) {
   const getAddress = async () => { return await wallet.getAddress() }
 
   // Start payment channel
-  const initiatePaymentChannel = async (amount, urlPaymentChannel, blocksLock) => { 
+  const initiatePaymentChannel = async (amount, urlPaymentChannel, blocksLock) => {
     // TODO: calculate fee properly
     const fee = MIN_FEE * SATOSHIS
     const toPublicKey = await paymentchannel.getPublicKey(urlPaymentChannel)
 
-    let { rawTransaction, address, hashScript, redeemScript } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
+    const { rawTransaction, address, hashScript, redeemScript } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
     debug(hashScript.toString('hex'))
     await spvnode.updateFilter(hashScript)
     spvnode.sendRawTransaction(rawTransaction)
@@ -72,7 +72,6 @@ async function app (args) {
     const newBalance = await wallet.getBalance()
     store.setBalance(newBalance)
 
-
     return address
   }
 
@@ -84,12 +83,10 @@ async function app (args) {
     const { commitmentTx, signature } = await wallet.createMicroPayment(amount, address, fee)
 
     // Send this to Bob
-    const result = await paymentchannel.payment(urlPaymentChannel, commitmentTx.toString('hex'), signature.toString('hex'), 1)
+    await paymentchannel.payment(urlPaymentChannel, commitmentTx.toString('hex'), signature.toString('hex'), 1)
 
     const paymentChannels = await wallet.getPaymentChannels()
     store.setPaymentChannels(paymentChannels)
-
-    return
   }
 
   // Create Interface
@@ -121,7 +118,7 @@ async function app (args) {
     .then(function (balance) {
       store.setBalance(balance)
     })
-  
+
   wallet.getPaymentChannels()
     .then(function (paymentChannels) {
       debug(paymentChannels)

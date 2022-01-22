@@ -71,7 +71,7 @@ class MainScreen extends Screen {
     let paymentChannelsSection = '    NONE'
     if (paymentChannels.length > 0) {
       paymentChannelsSection = ''
-      for (let pc of paymentChannels) {
+      for (const pc of paymentChannels) {
         paymentChannelsSection += `    ${pc.address} ---> ${pc.balance / SATOSHIS} Ð                  \n`
       }
       // space padding
@@ -101,7 +101,7 @@ ${paymentChannelsSection}
     1. Generate a new address                        
     2. Send dogecoins                                
     3. Create payment channel                        
-    ${paymentChannelsSection.length > 0 ? '4. Make a payment on payment channel': null}
+    ${paymentChannelsSection.length > 0 ? '4. Make a payment on payment channel' : null}
                                                      
     0. Quit                                          
 `

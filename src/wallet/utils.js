@@ -7,12 +7,11 @@ const secp256k1 = require('secp256k1')
 const CompactSize = require('../utils/compactSize')
 const { ScriptTypes } = require('./scripts')
 
-function sign(message, privatekey) {
+function sign (message, privatekey) {
   let signature = secp256k1.ecdsaSign(message, privatekey)
   signature = secp256k1.signatureExport(signature.signature)
   return Buffer.from(signature)
 }
-
 
 function hashing (buf) {
   let hash = crypto.createHash('sha256').update(buf).digest()
@@ -47,7 +46,7 @@ function prepareTransactionToSign (transaction, vint) {
   let bufSize = 4 + 1
   bufSize += 41 * transaction.txInCount + 25
   bufSize += 1
-  for (let txout of transaction.txOuts) {
+  for (const txout of transaction.txOuts) {
     bufSize += 9 + txout.pkScriptSize
   }
   bufSize += 8
@@ -139,14 +138,14 @@ function serializePayToMultisigWithTimeLockScript (publickeys, blocksLock) {
   const locktimeSize = CompactSize.fromSize(Buffer.from(locktime, 'hex').length)
 
   return Buffer.from(
-    '63' // OP_IF
-    + locktimeSize.slice(0, 1).toString('hex') + locktime 
-    + 'b1' // OP_CHECKLOCKTIMEVERIFY
-    + '75' // OP_DROP
-    + (publickeys[0].length / 2).toString(16) // length divide by two because hex string
-    + publickeys[0] // client public key (mine)
-    + 'ad' + '67' + '52' + '68' // OP_CHECKSIGVERIFY OP_ELSE OP_2 OP_ENDIF
-    + (publickeys[0].length / 2).toString(16) + publickeys[0] + (publickeys[1].length / 2).toString(16) + publickeys[1] + '52ae',
+    '63' + // OP_IF
+    locktimeSize.slice(0, 1).toString('hex') + locktime +
+    'b1' + // OP_CHECKLOCKTIMEVERIFY
+    '75' + // OP_DROP
+    (publickeys[0].length / 2).toString(16) + // length divide by two because hex string
+    publickeys[0] + // client public key (mine)
+    'ad' + '67' + '52' + '68' + // OP_CHECKSIGVERIFY OP_ELSE OP_2 OP_ENDIF
+    (publickeys[0].length / 2).toString(16) + publickeys[0] + (publickeys[1].length / 2).toString(16) + publickeys[1] + '52ae',
     'hex')
 }
 
@@ -155,9 +154,9 @@ function createPayToHash (script) {
     throw new Error('Script is expected to be a Buffer.')
   }
 
-  let hashScript = hashing(script)
+  const hashScript = hashing(script)
 
-  return { script: Buffer.from('a9'+ hashScript.length.toString(16) + hashScript.toString('hex') +'87', 'hex'), hashScript }
+  return { script: Buffer.from('a9' + hashScript.length.toString(16) + hashScript.toString('hex') + '87', 'hex'), hashScript }
 }
 
 function getPubkeyHashFromScript (script) {
@@ -181,7 +180,7 @@ function getPubkeyHashFromScript (script) {
 function extractPubkeyHashFromP2PK (script) {
   const firstByte = script.slice(0, 1).toString('hex')
 
-  if ('21' !== firstByte) {
+  if (firstByte !== '21') {
     throw new Error('Script is not pay-to-pubkey standard.')
   }
 
@@ -191,7 +190,7 @@ function extractPubkeyHashFromP2PK (script) {
 function extractPubkeyHashFromP2PKH (script) {
   const firstByte = script.slice(0, 1).toString('hex')
 
-  if ('76' !== firstByte) {
+  if (firstByte !== '76') {
     throw new Error('Script is not pay-to-pubkey-hash standard.')
   }
 
@@ -201,7 +200,7 @@ function extractPubkeyHashFromP2PKH (script) {
 function extractScriptHashFromP2SH (script) {
   const firstByte = script.slice(0, 1).toString('hex')
 
-  if ('a9' !== firstByte) {
+  if (firstByte !== 'a9') {
     throw new Error('Script is not pay-to-script-hash standard.')
   }
 
@@ -237,5 +236,5 @@ module.exports = {
   getScriptType,
   extractPubkeyHashFromP2PK,
   extractPubkeyHashFromP2PKH,
-  extractScriptHashFromP2SH,
+  extractScriptHashFromP2SH
 }

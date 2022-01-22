@@ -9,7 +9,7 @@ const HOST = 'https://paymentchannel.shibe.technology'
   Micro Payment Screen
 */
 class MicroPaymentScreen extends Screen {
-  constructor(args) {
+  constructor (args) {
     super()
 
     debug('Making a payment throught a payment channel')
@@ -33,7 +33,7 @@ class MicroPaymentScreen extends Screen {
     this.update()
   }
 
-  keyPressed(key) {
+  keyPressed (key) {
     switch (key) {
       case KEYS.ENTER:
         this.sendPaymentChannel()
@@ -45,10 +45,10 @@ class MicroPaymentScreen extends Screen {
 
   async sendPaymentChannel () {
     this.displayMainScreen()
-    await this.createMicroPayment(2n*SATOSHIS, this.address, HOST)
+    await this.createMicroPayment(2n * SATOSHIS, this.address, HOST)
   }
 
-  update() {
+  update () {
     const layout = `
 ================ MICRO PAYMENT ================
 

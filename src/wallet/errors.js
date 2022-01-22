@@ -13,7 +13,7 @@ class NotEnoughtKeysGenerated extends Error {
 }
 
 class BalanceTooLow extends Error {
-  constructor() {
+  constructor () {
     super('Your balance is too low.')
     this.name = 'BalanceTooLow'
   }

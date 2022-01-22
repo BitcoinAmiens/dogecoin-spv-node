@@ -193,7 +193,7 @@ class SPVNode extends EventEmitter {
     for (let i = 0; i < buf.length; i++) {
       inv = buf.slice(i, i + 1).toString('hex') + inv
     }
-    for (let peer of this.peers) {
+    for (const peer of this.peers) {
       await peer.sendFilterAdd(element)
     }
   }
