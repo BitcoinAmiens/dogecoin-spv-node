@@ -13,12 +13,16 @@ script:
   - npm test
 
 before_deploy:
-  - npm pack
+  - npm -g install pkg
+  - make package-linux
 
 deploy:
   provider: releases
   api_key: $GH_TOKEN  
-  file: dogecoin-spv-${TRAVIS_TAG/v}.tgz
+  file: 
+    - dogecoin-spv-${TRAVIS_TAG/v}-linux-x64.tar.gz
+    - dogecoin-spv-${TRAVIS_TAG/v}-win-x64.zip
+    - dogecoin-spv-${TRAVIS_TAG/v}-darwin-x64.zip 
   skip_cleanup: true
   on:
     tags: true
