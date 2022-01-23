@@ -40,3 +40,6 @@ package-macos:
 
 clean-package:
 	rm -rf dist
+
+install-deps:
+	npm install -g pkg
