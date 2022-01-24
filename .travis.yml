@@ -14,11 +14,11 @@ script:
 
 before_deploy:
   - npm -g install pkg
-  - make package-linux
+  - make package
 
 deploy:
   provider: releases
-  api_key: $GH_TOKEN  
+  api_key: $GH_TOKEN
   file: 
     - dogecoin-spv-${TRAVIS_TAG/v}-linux-x64.tar.gz
     - dogecoin-spv-${TRAVIS_TAG/v}-win-x64.zip
