@@ -35,8 +35,8 @@ package-win:
 package-macos:
 	pkg . --targets node16-macos-x64 --out-path dist/darwin
 	mkdir -p dist/darwin/prebuilds/darwin-x64
-	cp -r node_modules/leveldown/prebuilds/darwin-x64 dist/darwin/prebuilds
-	zip -r dogecoin-spv-$(VERSION)-darwin.zip dist/darwin
+	cp -r node_modules/leveldown/prebuilds/darwin-x64+arm64 dist/darwin/prebuilds
+	zip -r dogecoin-spv-$(VERSION)-darwin-x64.zip dist/darwin
 
 clean-package:
 	rm -rf dist
