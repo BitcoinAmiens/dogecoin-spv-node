@@ -48,6 +48,15 @@ tail -f stdout.log
 
 ## Documentation
 
+Run the doucmentation server locally
+```
+$ npm run docs:dev
+```
+
+Build the documentation
+```
+$ npm run docs:build
+```
 
 
 ## Troubleshouting

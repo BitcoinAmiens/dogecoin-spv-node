@@ -10,7 +10,7 @@ restart:
 	docker start dogecoind_regtest
 	
 generate:
-	docker exec dogecoind_regtest dogecoin-cli generate 5
+	docker exec dogecoind_regtest dogecoin-cli generate $1
 	
 clean-regtest:
 	rm -rf data/regtest
@@ -43,3 +43,5 @@ clean-package:
 
 install-deps:
 	npm install -g pkg
+
+.PHONY: build-regtest regtest restart generate clean-regtest clean-regtest-data clean-package install-deps
