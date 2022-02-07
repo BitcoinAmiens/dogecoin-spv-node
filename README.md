@@ -4,6 +4,9 @@
 
 A simple spv node for Dogecoin.
 
+
+See [Documentation](https://bitcoinamiens.github.io/dogecoin-spv-node/)
+
 ## Development (regtest)
 
 You will need docker installed.
@@ -25,7 +28,7 @@ $ make restart
 
 Generate 5 blocks:
 ```
-$ make generate
+$ make generate count=5
 ```
 
 Start the spvnoce in regtest mode:
@@ -48,6 +51,15 @@ tail -f stdout.log
 
 ## Documentation
 
+Run the doucmentation server locally
+```
+$ npm run docs:dev
+```
+
+Build the documentation
+```
+$ npm run docs:build
+```
 
 
 ## Troubleshouting
