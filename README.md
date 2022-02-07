@@ -25,7 +25,7 @@ $ make restart
 
 Generate 5 blocks:
 ```
-$ make generate
+$ make generate count=5
 ```
 
 Start the spvnoce in regtest mode:

@@ -44,6 +44,19 @@ Start the dogecoind container in regtest mode
 $ make regtest
 ```
 
-Generate some block
+Generate some blocks
+```
+$ make generate count=150
+```
 
-### 
+### Start the wallet in regtest mode
+
+You can start the wallet in regtest mode by specifying the `NETWORK` envrionment variable to `regtest` and `DEV` to `true` to create a local folder with all the data.
+```
+$ NETWORK=regtest DEV=true npm start
+```
+
+In an other terminal you can check the logs by reading the `stdout.log` file.
+```
+$ tail -f stoud.log
+```
