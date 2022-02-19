@@ -9,7 +9,7 @@ const debug = require('debug')('paymentchannel')
 */
 
 async function getPublicKey (url) {
-  debug(url)
+  debug('calling /api/v1/pubkey/new')
   const result = await axios.get(`${url}/api/v1/pubkey/new`)
 
   // TODO: handle error
@@ -18,6 +18,7 @@ async function getPublicKey (url) {
 }
 
 async function announce (url, redeemScript) {
+  debug('calling /api/v1/announce')
   const result = await axios.post(`${url}/api/v1/announce`, { redeemScript })
 
   // TODO: handle error
@@ -25,8 +26,9 @@ async function announce (url, redeemScript) {
   return result.data
 }
 
-async function payment (url, transaction, signature, ref) {
-  const result = await axios.post(`${url}/api/v1/payment`, { transaction, signature, ref })
+async function payment (url, transaction, redeemScript, signature, ref) {
+  debug('calling /api/v1/payment')
+  const result = await axios.post(`${url}/api/v1/payment`, { transaction, redeemScript, signature, ref })
 
   // TODO: handle error
 
