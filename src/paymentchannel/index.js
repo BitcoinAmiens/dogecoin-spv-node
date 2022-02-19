@@ -1,5 +1,5 @@
 const axios = require('axios')
-// const debug = require('debug')('paymentchannel')
+const debug = require('debug')('paymentchannel')
 
 /*
     TODO: should be a class PaymentChannel
@@ -9,6 +9,7 @@ const axios = require('axios')
 */
 
 async function getPublicKey (url) {
+  debug(url)
   const result = await axios.get(`${url}/api/v1/pubkey/new`)
 
   // TODO: handle error
