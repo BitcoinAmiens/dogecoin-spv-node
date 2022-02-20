@@ -655,9 +655,10 @@ class Wallet extends EventEmitter {
     const commitmentTx = encodeRawTransaction(transaction)
 
     // Save latest commitment
+    // TODO: only save if 200 from payment server
     await this.db.putCommitment(hashScript.toString('hex'), transaction)
 
-    return { commitmentTx, signature }
+    return { commitmentTx, signature, redeemScript: redeemScript.script }
   }
 
   async send (amount, to, fee) {

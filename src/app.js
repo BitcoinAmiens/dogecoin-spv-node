@@ -64,9 +64,14 @@ async function app (args) {
     await spvnode.updateFilter(hashScript)
     spvnode.sendRawTransaction(rawTransaction)
 
-    // Announce payment channel
-    const result = await paymentchannel.announce(urlPaymentChannel, redeemScript.toString('hex'))
-    debug(result)
+    try {
+      // Announce payment channel
+      await paymentchannel.announce(urlPaymentChannel, redeemScript.toString('hex'))
+    } catch (err) {
+      debug(err.response.data)
+      store.setRejectMessage(err.response.data)
+      return
+    }
 
     debug('SENT TO P2SH !')
     const newBalance = await wallet.getBalance()
@@ -80,10 +85,16 @@ async function app (args) {
     const fee = MIN_FEE * SATOSHIS
 
     debug('Create micro transaction !')
-    const { commitmentTx, signature } = await wallet.createMicroPayment(amount, address, fee)
+    const { commitmentTx, signature, redeemScript } = await wallet.createMicroPayment(amount, address, fee)
 
-    // Send this to Bob
-    await paymentchannel.payment(urlPaymentChannel, commitmentTx.toString('hex'), signature.toString('hex'), 1)
+    try {
+      // Send this to Bob
+      await paymentchannel.payment(urlPaymentChannel, commitmentTx.toString('hex'), redeemScript, signature.toString('hex'), 1)
+    } catch (err) {
+      debug(err.response.data)
+      store.setRejectMessage(err.response.data)
+      return
+    }
 
     const paymentChannels = await wallet.getPaymentChannels()
     store.setPaymentChannels(paymentChannels)

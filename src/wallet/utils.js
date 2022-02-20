@@ -44,7 +44,9 @@ function prepareTransactionToSign (transaction, vint) {
   const txInCount = CompactSize.fromSize(transaction.txInCount)
   const txOutCount = CompactSize.fromSize(transaction.txOutCount)
   let bufSize = 4 + 1
-  bufSize += 41 * transaction.txInCount + 25
+
+  // TODO: You need to get the tx signature length of the script txin matching vint
+  bufSize += 41 * transaction.txInCount + transaction.txIns[vint].signature.length
   bufSize += 1
   for (const txout of transaction.txOuts) {
     bufSize += 9 + txout.pkScriptSize

@@ -11,7 +11,7 @@
   "license": "WTFPL",
   "main": "./bin/main.js",
   "scripts": {
-    "start": "DEBUG=* node src/main.js",
+    "start": "DEBUG=*,-follow-redirects node src/main.js",
     "dev": "DEBUG=*,-nodemon:*,-nodemon nodemon src/main.js",
     "clean": "rm -rf data",
     "test": "NETWORK=testnet nyc ava",
