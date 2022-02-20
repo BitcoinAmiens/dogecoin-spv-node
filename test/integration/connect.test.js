@@ -29,12 +29,18 @@ test.before(async t => {
 
   // Start Dogecoin docker node
   const docker = new Docker()
-  
+
   const container = await docker.createContainer({
     Image: 'dogecoind',
     name: 'dogecoind_regtest',
-    PortBindings: {['18444/tcp']: [{ HostIp: '0.0.0.0', HostPort: '18444' }]},
-    NetworkMode: 'host'
+    HostConfig: {
+      NetworkMode: 'host',
+      Mounts: [{
+        Source :`${process.cwd()}/provision/dogecoind/dogecoin.conf`,
+        Target: '/root/.dogecoin/dogecoin.conf',
+        Type: 'bind'
+      }]
+    }
   })
 
   t.log('container created')
