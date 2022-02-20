@@ -3,8 +3,8 @@ const debug = require('debug')('paymentChannelScreen')
 const KEYS = require('../keys')
 const { SATOSHIS } = require('../../constants')
 
-// const HOST = 'https://paymentchannel.shibe.technology'
-const HOST = 'http://localhost:5000'
+const HOST = 'https://paymentchannel.shibe.technology'
+// const HOST = 'http://localhost:5000'
 
 /*
   Micro Payment Screen
