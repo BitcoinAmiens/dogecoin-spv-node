@@ -17,7 +17,10 @@ const constants = {
         public: 0x043587CF,
         private: 0x04358394
       }
-    }
+    },
+    PAYMENT_CHANNEL_URLS: [
+      'http://localhost:5000'
+    ]
   },
   testnet: {
     DATA_SUBFOLDER: 'testnet',
@@ -35,7 +38,10 @@ const constants = {
         public: 0x043587CF,
         private: 0x04358394
       }
-    }
+    },
+    PAYMENT_CHANNEL_URLS: [
+      'https://paymentchannel.shibe.technology'
+    ]
   },
   mainnet: {
     DATA_SUBFOLDER: '.',
@@ -53,7 +59,10 @@ const constants = {
         public: 0x02FACAFD,
         private: 0x02FAC398
       }
-    }
+    },
+    PAYMENT_CHANNEL_URLS: [
+      ''
+    ]
   }
 }
 
