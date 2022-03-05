@@ -26,7 +26,8 @@ class Interface extends EventEmitter {
       typeof args.sendTransaction !== 'function' ||
       typeof args.initiatePaymentChannel !== 'function' ||
       typeof args.createMicroPayment !== 'function' ||
-      typeof args.store !== 'object'
+      typeof args.store !== 'object' ||
+      typeof args.paymentChannelServices !== 'object'
     ) {
       throw new Error("You need to define 'getAddress' function, 'sendTransaction' function, 'initiatePaymentChannel' function, 'createMicroPayment' function and a 'store' object.")
     }
@@ -36,6 +37,7 @@ class Interface extends EventEmitter {
     this.initiatePaymentChannel = args.initiatePaymentChannel
     this.createMicroPayment = args.createMicroPayment
     this.store = args.store
+    this.paymentChannelServices = args.paymentChannelServices
 
     // dummy screen to avoid trouble
     this.screen = new DummyScreen()
@@ -135,7 +137,7 @@ class Interface extends EventEmitter {
       process.stdout.write(terminalStyle.CLEAR)
 
       // Update screen
-      this.screen = new PaymentChannelScreen({ initiatePaymentChannel: this.initiatePaymentChannel })
+      this.screen = new PaymentChannelScreen({ initiatePaymentChannel: this.initiatePaymentChannel, paymentChannelUrl: this.paymentChannelServices[0] })
     })
   }
 
@@ -147,7 +149,8 @@ class Interface extends EventEmitter {
       this.screen = new MicroPaymentScreen({
         createMicroPayment: this.createMicroPayment,
         address: this.store.paymentChannels[0].address,
-        displayMainScreen: this.displayMainScreen.bind(this)
+        displayMainScreen: this.displayMainScreen.bind(this),
+        paymentChannelServices: this.paymentChannelServices[0]
       })
     })
   }

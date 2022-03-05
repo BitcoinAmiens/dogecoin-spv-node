@@ -1,9 +1,7 @@
 const Screen = require('./screen')
 const debug = require('debug')('paymentChannelScreen')
 const KEYS = require('../keys')
-const { SATOSHIS, PAYMENT_CHANNEL_URLS } = require('../../constants')
-
-const HOST = PAYMENT_CHANNEL_URLS[0]
+const { SATOSHIS } = require('../../constants')
 
 /*
   Micro Payment Screen
@@ -26,9 +24,14 @@ class MicroPaymentScreen extends Screen {
       throw new Error('Missing "displayMainScreen" function.')
     }
 
+    if (typeof args.paymentChannelUrl !== 'string') {
+      throw new Error('"paymentChannelUrl" must be a string.')
+    }
+
     this.address = args.address
     this.createMicroPayment = args.createMicroPayment
     this.displayMainScreen = args.displayMainScreen
+    this.paymentChannelUrl = args.paymentChannelUrl
 
     this.update()
   }
@@ -45,7 +48,7 @@ class MicroPaymentScreen extends Screen {
 
   async sendPaymentChannel () {
     this.displayMainScreen()
-    await this.createMicroPayment(2n * SATOSHIS, this.address, HOST)
+    await this.createMicroPayment(2n * SATOSHIS, this.address, this.paymentChannelUrl)
   }
 
   update () {
