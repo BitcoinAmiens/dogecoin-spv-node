@@ -1,9 +1,7 @@
 const Screen = require('./screen')
 const debug = require('debug')('paymentChannelScreen')
 const KEYS = require('../keys')
-const { SATOSHIS, PAYMENT_CHANNEL_URLS } = require('../../constants')
-
-const HOST = PAYMENT_CHANNEL_URLS[0]
+const { SATOSHIS } = require('../../constants')
 
 /*
   Initiate Payment Channel Screen
@@ -15,6 +13,7 @@ class PaymentChannelScreen extends Screen {
     debug('Initiating new payment channel')
 
     this.initiatePaymentChannel = args.initiatePaymentChannel
+    this.paymentChannelUrl = args.paymentChannelUrl
     this.update()
   }
 
@@ -29,14 +28,16 @@ class PaymentChannelScreen extends Screen {
   }
 
   async startPaymentChannel () {
-    this.p2shAddress = await this.initiatePaymentChannel(BigInt(100) * SATOSHIS, HOST, 500)
+    this.p2shAddress = await this.initiatePaymentChannel(BigInt(100) * SATOSHIS, this.paymentChannelUrl, 500)
     process.stdout.moveCursor(this.cursorPosition, -(this.numberOfLines - 1), () => {
       this.update()
     })
   }
 
   update () {
-    const p2shline = this.p2shAddress ? `P2SH address : ${this.p2shAddress}                  ` : `Press "Enter" to create a payment channel with ${HOST}`
+    const p2shline = this.p2shAddress
+      ? `P2SH address : ${this.p2shAddress}                                                             `
+      : `Press "Enter" to create a payment channel with ${this.paymentChannelUrl}                       `
 
     const layout = `
 ================ PAYMENT CHANNEL ================

@@ -106,7 +106,8 @@ async function app (args) {
     getAddress,
     sendTransaction,
     initiatePaymentChannel,
-    createMicroPayment
+    createMicroPayment,
+    paymentChannelServices: settings.PAYMENT_CHANNEL_URLS
   })
 
   // Do we have seed already ?
