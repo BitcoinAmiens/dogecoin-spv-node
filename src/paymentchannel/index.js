@@ -17,9 +17,22 @@ async function getPublicKey (url) {
   return result.data.pubkey
 }
 
-async function announce (url, redeemScript) {
+async function announce (url, redeemScript, transaction, signature) {
   debug('calling /api/v1/announce')
-  const result = await axios.post(`${url}/api/v1/announce`, { redeemScript })
+
+  if (typeof redeemScript !== 'string') {
+    throw new Error('`redeemScript` argument should be a string.')
+  }
+
+  if (typeof transaction !== 'string') {
+    throw new Error('`transaction` argument should be a string.')
+  }
+
+  if (typeof signature !== 'string') {
+    throw new Error('`signature` argument should be a string.')
+  }
+
+  const result = await axios.post(`${url}/api/v1/announce`, { redeemScript, transaction, signature })
 
   // TODO: handle error
 

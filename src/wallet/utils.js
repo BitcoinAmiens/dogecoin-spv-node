@@ -41,12 +41,12 @@ function pubkeyToAddress (pubkey, networkByte, hash = false) {
 // We need to remove the original script of all the input which are not going to be signed
 // https://bitcoin.stackexchange.com/questions/41209/how-to-sign-a-transaction-with-multiple-inputs
 function prepareTransactionToSign (transaction, vint) {
-  const txInCount = CompactSize.fromSize(transaction.txInCount)
-  const txOutCount = CompactSize.fromSize(transaction.txOutCount)
+  const txInCount = CompactSize.fromSize(transaction.txIns.length)
+  const txOutCount = CompactSize.fromSize(transaction.txOuts.length)
   let bufSize = 4 + 1
 
   // TODO: You need to get the tx signature length of the script txin matching vint
-  bufSize += 41 * transaction.txInCount + transaction.txIns[vint].signature.length
+  bufSize += 41 * transaction.txIns.length + transaction.txIns[vint].signature.length
   bufSize += 1
   for (const txout of transaction.txOuts) {
     bufSize += 9 + txout.pkScriptSize
@@ -62,7 +62,7 @@ function prepareTransactionToSign (transaction, vint) {
   txInCount.copy(buffer, offset)
   offset += txInCount.length
 
-  for (let txInIndex = 0; txInIndex < transaction.txInCount; txInIndex++) {
+  for (const txInIndex in transaction.txIns) {
     Buffer.from(transaction.txIns[txInIndex].previousOutput.hash, 'hex').copy(buffer, offset)
     offset += 32
 
@@ -89,7 +89,7 @@ function prepareTransactionToSign (transaction, vint) {
   txOutCount.copy(buffer, offset)
   offset += txOutCount.length
 
-  for (let txOutIndex = 0; txOutIndex < transaction.txOutCount; txOutIndex++) {
+  for (const txOutIndex in transaction.txOuts) {
     buffer.writeBigInt64LE(transaction.txOuts[txOutIndex].value, offset)
     offset += 8
 

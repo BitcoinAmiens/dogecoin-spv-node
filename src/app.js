@@ -59,14 +59,14 @@ async function app (args) {
     const fee = MIN_FEE * SATOSHIS
     const toPublicKey = await paymentchannel.getPublicKey(urlPaymentChannel)
 
-    const { rawTransaction, address, hashScript, redeemScript } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
+    const { rawTransaction, rawReturnTransaction, returnTxSignature, address, hashScript, redeemScript } = await wallet.initiatePaymentChannel(amount, toPublicKey, fee, blocksLock)
     debug(hashScript.toString('hex'))
     await spvnode.updateFilter(hashScript)
     spvnode.sendRawTransaction(rawTransaction)
 
     try {
       // Announce payment channel
-      await paymentchannel.announce(urlPaymentChannel, redeemScript.toString('hex'))
+      await paymentchannel.announce(urlPaymentChannel, redeemScript.toString('hex'), rawReturnTransaction.toString('hex'), returnTxSignature.toString('hex'))
     } catch (err) {
       debug(err.response.data)
       store.setRejectMessage(err.response.data)

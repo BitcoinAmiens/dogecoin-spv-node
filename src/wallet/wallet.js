@@ -152,6 +152,24 @@ class Wallet extends EventEmitter {
     return changeAddress ? countChangeAddress : pubkeys.length - countChangeAddress
   }
 
+  async _getChangeAddress () {
+    let changeAddress
+    const pubkeys = await this.db.getAllPubkeys()
+
+    for (const pubkey of pubkeys) {
+      if (pubkey.isChangeAddress && !pubkey.used) {
+        changeAddress = pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE)
+        break
+      }
+    }
+
+    if (!changeAddress) {
+      changeAddress = await this.generateChangeAddress()
+    }
+
+    return changeAddress
+  }
+
   async getBalance () {
     let balance = BigInt(0)
 
@@ -406,6 +424,7 @@ class Wallet extends EventEmitter {
 
           if (value.type === ScriptTypes.PAY_TO_SCRIPT_HASH) {
             // If is is a multisig don't use it
+            resolve()
             return
           }
 
@@ -440,44 +459,72 @@ class Wallet extends EventEmitter {
     return { txIns, total }
   }
 
-  async initiatePaymentChannel (amount, toPublicKey, fee, blocksLock) {
-    let changeAddress
-    const pubkeys = await this.db.getAllPubkeys()
-
-    debug('Initiate payment channel')
-
-    for (const pubkey of pubkeys) {
-      if (pubkey.isChangeAddress && !pubkey.used) {
-        changeAddress = pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE)
-        break
-      }
-    }
-
-    if (!changeAddress) {
-      changeAddress = await this.generateChangeAddress()
-    }
-
-    const transaction = {
+  _newTx () {
+    return {
       version: 1,
-      txInCount: 0,
       txIns: [],
-      txOutCount: 2,
       txOuts: [],
       locktime: 0,
       hashCodeType: 1
     }
+  }
+
+  async _signTransaction (transaction, index, redeemScript = null) {
+    debug(`index to sign ${index}`)
+    const rawUnsignedTransaction = prepareTransactionToSign(transaction, index)
+    const rawTransactionHash = doubleHash(rawUnsignedTransaction)
+
+    debug(`RawTransaction : ${rawUnsignedTransaction.toString('hex')}`)
+
+    let pubkeyHash
+
+    if (redeemScript) {
+      pubkeyHash = pubkeyToPubkeyHash(Buffer.from(redeemScript.pubkey, 'hex'))
+    } else {
+      pubkeyHash = getPubkeyHashFromScript(transaction.txIns[index].signature)
+    }
+
+    // We have pubkey hash
+    debug(`PubKey Hash ${pubkeyHash.toString('hex')}! Looking for index...`)
+    const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
+
+    const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
+
+    debug(`Pubkey ${key.publicKey.toString('hex')}`)
+
+    const signature = sign(rawTransactionHash, key.privateKey)
+
+    return { signature, publicKey: key.publicKey }
+  }
+
+  _addP2KHSignature (transaction, signature, publicKey, index) {
+    const signatureCompactSize = CompactSize.fromSize(signature.length + 1)
+    const publicKeyCompactSize = CompactSize.fromSize(publicKey.length)
+
+    const scriptSig = signatureCompactSize.toString('hex') + signature.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + publicKey.toString('hex')
+
+    transaction.txIns[index].signatureSize = CompactSize.fromSize(Buffer.from(scriptSig).length, 'hex')
+    transaction.txIns[index].signature = Buffer.from(scriptSig, 'hex')
+
+    return transaction
+  }
+
+  async initiatePaymentChannel (amount, toPublicKey, fee, blocksLock) {
+    debug('Initiate payment channel')
 
     const balance = await this.getBalance()
-
     if (balance < amount) {
       debug('Not enought funds!')
       throw new BalanceTooLow()
     }
 
+    const changeAddress = await this._getChangeAddress()
+    let transaction = this._newTx()
+
     const { txIns, total } = await this._collectInputsForAmount(amount)
+    debug(total)
 
     transaction.txIns = txIns
-    transaction.txInCount = txIns.length
 
     const unusedPubkey = await this.getUnusedPubkey()
     const multisigScript = serializePayToMultisigWithTimeLockScript([unusedPubkey.toString('hex'), toPublicKey], blocksLock)
@@ -485,8 +532,9 @@ class Wallet extends EventEmitter {
 
     debug(`P2SH script : ${multisigScript.toString('hex')}`)
     debug(`P2SH hash script : ${p2sh.hashScript.toString('hex')}`)
+    const redeemScript = { script: multisigScript.toString('hex'), recipient: toPublicKey, pubkey: unusedPubkey.toString('hex') }
 
-    this.saveRedeemScriptData(p2sh.hashScript.toString('hex'), { script: multisigScript.toString('hex'), recipient: toPublicKey, pubkey: unusedPubkey.toString('hex') })
+    this.saveRedeemScriptData(p2sh.hashScript.toString('hex'), redeemScript)
 
     transaction.txOuts[0] = {
       value: amount - fee,
@@ -505,31 +553,12 @@ class Wallet extends EventEmitter {
       }
     }
 
-    transaction.txOutCount = transaction.txOuts.length
+    debug('Tx in counts : ', transaction.txIns.length)
 
-    debug('Tx in counts : ', transaction.txInCount)
+    for (const txInIndex in transaction.txIns) {
+      const { signature, publicKey } = await this._signTransaction(transaction, txInIndex)
 
-    for (let txInIndex = 0; txInIndex < transaction.txInCount; txInIndex++) {
-      const rawUnsignedTransaction = prepareTransactionToSign(transaction, txInIndex)
-      const rawTransactionHash = doubleHash(rawUnsignedTransaction)
-
-      const pubkeyHash = getPubkeyHashFromScript(transaction.txIns[txInIndex].signature)
-
-      // We have pubkey hash
-      debug(`PubKey Hash ${pubkeyHash.toString('hex')}! Looking for index...`)
-      const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
-
-      const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
-
-      const signature = sign(rawTransactionHash, key.privateKey)
-
-      const signatureCompactSize = CompactSize.fromSize(signature.length + 1)
-      const publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
-
-      const scriptSig = signatureCompactSize.toString('hex') + signature.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
-
-      transaction.txIns[txInIndex].signatureSize = CompactSize.fromSize(Buffer.from(scriptSig).length, 'hex')
-      transaction.txIns[txInIndex].signature = Buffer.from(scriptSig, 'hex')
+      transaction = this._addP2KHSignature(transaction, signature, publicKey, txInIndex)
     }
 
     delete transaction.hashCodeType
@@ -541,13 +570,38 @@ class Wallet extends EventEmitter {
       this.pendingTxOuts.set(doubleHash(rawTransaction).toString('hex'), transaction.txOuts[1])
     }
 
-    debug(rawTransaction.toString('hex'))
+    // need to calculate the txid
+    const txid = doubleHash(rawTransaction)
+    // Calculate return payment
 
     // use raw transaction to create refund transaction
+    const returnTx = this._newTx()
+    returnTx.txIns.push({
+      previousOutput: { hash: txid, index: 0 },
+      signature: Buffer.from(redeemScript.script, 'hex'),
+      sequence: 4294967294
+    })
+
+    const newAddress = await this.getAddress()
+    const pkScript = serializePayToPubkeyHashScript(newAddress)
+    returnTx.txOuts.push({
+      value: amount - 2n * fee,
+      pkScriptSize: pkScript.length,
+      pkScript
+    })
+
+    const { signature } = await this._signTransaction(returnTx, '0', redeemScript)
+
+    returnTx.txIns[0].signatureSize = CompactSize.fromSize(0)
+    returnTx.txIns[0].signature = Buffer.alloc(0)
+
+    const rawReturnTransaction = encodeRawTransaction(returnTx)
 
     return {
       address: pubkeyToAddress(p2sh.hashScript, this.settings.SCRIPT_BYTE, true),
-      rawTransaction: rawTransaction,
+      rawTransaction,
+      rawReturnTransaction,
+      returnTxSignature: signature,
       transaction,
       hashScript: p2sh.hashScript,
       redeemScript: multisigScript
@@ -555,32 +609,10 @@ class Wallet extends EventEmitter {
   }
 
   async createMicroPayment (amount, p2shAddress, fee) {
-    let changeAddress
-    const pubkeys = await this.db.getAllPubkeys()
-
     debug(`sign micro transaction! ${amount} ${p2shAddress} ${fee}`)
 
-    // REVIEW: the transaction is not being published directly so it might be used twice.
-    for (const pubkey of pubkeys) {
-      if (pubkey.isChangeAddress && !pubkey.used) {
-        changeAddress = pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE)
-        break
-      }
-    }
-
-    if (!changeAddress) {
-      changeAddress = await this.generateChangeAddress()
-    }
-
-    const transaction = {
-      version: 1,
-      txInCount: 0,
-      txIns: [],
-      txOutCount: 2,
-      txOuts: [],
-      locktime: 0,
-      hashCodeType: 1
-    }
+    const changeAddress = await this._getChangeAddress()
+    const transaction = this._newTx()
 
     const p2shTx = await this.getPaymentChannel(p2shAddress)
     const total = BigInt(p2shTx.txOuts[0].value)
@@ -590,8 +622,6 @@ class Wallet extends EventEmitter {
       signature: Buffer.from(p2shTx.txOuts[0].pkScript.data),
       sequence: 4294967294
     })
-
-    transaction.txInCount = transaction.txIns.length
 
     const hashScript = extractScriptHashFromP2SH(Buffer.from(p2shTx.txOuts[0].pkScript, 'hex'))
 
@@ -629,25 +659,9 @@ class Wallet extends EventEmitter {
     }
 
     // Micro payment transaction as always only 1 txin which is our p2sh tx
-    const rawUnsignedTransaction = prepareTransactionToSign(transaction, 0)
-    const rawTransactionHash = doubleHash(rawUnsignedTransaction)
+    const { signature } = await this._signTransaction(transaction, '0', redeemScript)
 
-    const pubkeyHash = pubkeyToPubkeyHash(Buffer.from(redeemScript.pubkey, 'hex'))
-    const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
-
-    const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
-
-    const signature = sign(rawTransactionHash, key.privateKey)
-
-    /* const signatureCompactSize = CompactSize.fromSize(signature.length + 1)
-    const publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
-
-    const scriptSig = signatureCompactSize.toString('hex') + signature.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
-
-    transaction.txIns[0].signatureSize = CompactSize.fromSize(Buffer.from(scriptSig).length, 'hex')
-    transaction.txIns[0].signature = Buffer.from(scriptSig, 'hex') */
-
-    transaction.txIns[0].signatureSize = CompactSize.fromSize(0, 'hex')
+    transaction.txIns[0].signatureSize = CompactSize.fromSize(0)
     transaction.txIns[0].signature = Buffer.alloc(0)
 
     delete transaction.hashCodeType
@@ -662,31 +676,10 @@ class Wallet extends EventEmitter {
   }
 
   async send (amount, to, fee) {
-    let changeAddress
-    const pubkeys = await this.db.getAllPubkeys()
-
     debug(`send! ${amount} ${fee}`)
 
-    for (const pubkey of pubkeys) {
-      if (pubkey.isChangeAddress && !pubkey.used) {
-        changeAddress = pubkeyToAddress(Buffer.from(pubkey.publicKey, 'hex'), this.settings.NETWORK_BYTE)
-        break
-      }
-    }
-
-    if (!changeAddress) {
-      changeAddress = await this.generateChangeAddress()
-    }
-
-    const transaction = {
-      version: 1,
-      txInCount: 0,
-      txIns: [],
-      txOutCount: 2,
-      txOuts: [],
-      locktime: 0,
-      hashCodeType: 1
-    }
+    const changeAddress = await this._getChangeAddress()
+    let transaction = this._newTx()
 
     const balance = await this.getBalance()
 
@@ -697,7 +690,6 @@ class Wallet extends EventEmitter {
     const { txIns, total } = await this._collectInputsForAmount(amount)
 
     transaction.txIns = txIns
-    transaction.txInCount = txIns.length
 
     let pkScript = serializePayToPubkeyHashScript(to)
 
@@ -718,31 +710,12 @@ class Wallet extends EventEmitter {
       }
     }
 
-    transaction.txOutCount = transaction.txOuts.length
+    debug('Tx in counts : ', transaction.txIns.length)
 
-    debug('Tx in counts : ', transaction.txInCount)
+    for (const txInIndex in transaction.txIns) {
+      const { signature, publicKey } = await this._signTransaction(transaction, txInIndex)
 
-    for (let txInIndex = 0; txInIndex < transaction.txInCount; txInIndex++) {
-      const rawUnsignedTransaction = prepareTransactionToSign(transaction, txInIndex)
-      const rawTransactionHash = doubleHash(rawUnsignedTransaction)
-
-      const pubkeyHash = getPubkeyHashFromScript(transaction.txIns[txInIndex].signature)
-
-      // We have pubkey hash
-      debug('PubKey Hash! Looking for index...')
-      const pubkey = await this.db.getPubkey(pubkeyHash.toString('hex'))
-
-      const key = this.getPrivateKey(pubkey.index, pubkey.isChangeAddress)
-
-      const signature = sign(rawTransactionHash, key.privateKey)
-
-      const signatureCompactSize = CompactSize.fromSize(signature.length + 1)
-      const publicKeyCompactSize = CompactSize.fromSize(key.publicKey.length)
-
-      const scriptSig = signatureCompactSize.toString('hex') + signature.toString('hex') + '01' + publicKeyCompactSize.toString('hex') + key.publicKey.toString('hex')
-
-      transaction.txIns[txInIndex].signatureSize = CompactSize.fromSize(Buffer.from(scriptSig).length, 'hex')
-      transaction.txIns[txInIndex].signature = Buffer.from(scriptSig, 'hex')
+      transaction = this._addP2KHSignature(transaction, signature, publicKey, txInIndex)
     }
 
     delete transaction.hashCodeType

@@ -150,7 +150,7 @@ class Interface extends EventEmitter {
         createMicroPayment: this.createMicroPayment,
         address: this.store.paymentChannels[0].address,
         displayMainScreen: this.displayMainScreen.bind(this),
-        paymentChannelServices: this.paymentChannelServices[0]
+        paymentChannelUrl: this.paymentChannelServices[0]
       })
     })
   }
