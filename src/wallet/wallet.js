@@ -1,5 +1,6 @@
 const bip39 = require('bip39')
 const bip32 = require('bip32')
+const bs58check = require('bs58check')
 const { encodeRawTransaction } = require('../commands/tx')
 const doubleHash = require('../utils/doubleHash')
 const CompactSize = require('../utils/compactSize')
@@ -202,7 +203,6 @@ class Wallet extends EventEmitter {
         const hash = getPubkeyHashFromScript(pkScript)
         const address = pubkeyToAddress(hash, this.settings.SCRIPT_BYTE, true).toString('hex')
 
-        debug(hash.toString('hex'))
         const commitment = await this.db.getCommitment(hash.toString('hex'))
         let precedentCommitmentValue = 0n
         if (commitment) {
@@ -264,6 +264,13 @@ class Wallet extends EventEmitter {
     return pubkeyToAddress(pubkey, this.settings.NETWORK_BYTE)
   }
 
+  async getRedeemScript (address) {
+    const hashScript = bs58check.decode(address).slice(1)
+    const redeemScript = await this.db.getRedeemScript(hashScript.toString('hex'))
+
+    return redeemScript
+  }
+
   async addTxToWallet (tx) {
     debug(tx)
 
@@ -301,7 +308,6 @@ class Wallet extends EventEmitter {
     // Decode pkScript and determine what kind of script it is
     for (const index in tx.txOuts) {
       const txOut = tx.txOuts[index]
-      debug(txOut)
 
       const scriptType = getScriptType(txOut.pkScript)
 
@@ -325,9 +331,11 @@ class Wallet extends EventEmitter {
         continue
       }
 
+      const pubkeyHash = scriptElement.hash || pubkeyToPubkeyHash(Buffer.from(scriptElement.pubkey, 'hex'))
+      this.db.markPubkeyAsUsed(pubkeyHash.toString('hex'))
+
       // Standard transaction
       const indexBuffer = indexToBufferInt32LE(index)
-
       const output = tx.id + indexBuffer.toString('hex')
 
       debug(`New tx : ${output}`)
@@ -474,6 +482,8 @@ class Wallet extends EventEmitter {
     const rawUnsignedTransaction = prepareTransactionToSign(transaction, index)
     const rawTransactionHash = doubleHash(rawUnsignedTransaction)
 
+    debug(rawTransactionHash.toString('hex'))
+
     debug(`RawTransaction : ${rawUnsignedTransaction.toString('hex')}`)
 
     let pubkeyHash
@@ -522,11 +532,11 @@ class Wallet extends EventEmitter {
     let transaction = this._newTx()
 
     const { txIns, total } = await this._collectInputsForAmount(amount)
-    debug(total)
 
     transaction.txIns = txIns
 
     const unusedPubkey = await this.getUnusedPubkey()
+    debug(unusedPubkey.toString('hex'))
     const multisigScript = serializePayToMultisigWithTimeLockScript([unusedPubkey.toString('hex'), toPublicKey], blocksLock)
     const p2sh = createPayToHash(multisigScript)
 
@@ -617,13 +627,14 @@ class Wallet extends EventEmitter {
     const p2shTx = await this.getPaymentChannel(p2shAddress)
     const total = BigInt(p2shTx.txOuts[0].value)
 
+    const hashScript = extractScriptHashFromP2SH(Buffer.from(p2shTx.txOuts[0].pkScript, 'hex'))
+    const redeemScript = await this.db.getRedeemScript(hashScript.toString('hex'))
+
     transaction.txIns.push({
       previousOutput: { hash: p2shTx.id, index: 0 },
-      signature: Buffer.from(p2shTx.txOuts[0].pkScript.data),
+      signature: Buffer.from(redeemScript.script, 'hex'),
       sequence: 4294967294
     })
-
-    const hashScript = extractScriptHashFromP2SH(Buffer.from(p2shTx.txOuts[0].pkScript, 'hex'))
 
     const latestCommitment = await this.db.getCommitment(hashScript.toString('hex'))
     let precedentCommitmentAmount = 0n
@@ -636,8 +647,6 @@ class Wallet extends EventEmitter {
       debug(`Total available : ${total}, Precedent Commitment: ${precedentCommitmentAmount}`)
       throw new BalanceTooLow()
     }
-
-    const redeemScript = await this.db.getRedeemScript(hashScript.toString('hex'))
 
     const to = pubkeyToAddress(Buffer.from(redeemScript.recipient, 'hex'), this.settings.NETWORK_BYTE)
     let pkScript = serializePayToPubkeyHashScript(to)

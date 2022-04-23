@@ -100,6 +100,33 @@ async function app (args) {
     store.setPaymentChannels(paymentChannels)
   }
 
+  // close payment channel
+  const closeChannel = async (address, urlPaymentChannel) => {
+    debug('Close Payment Channel')
+
+    const redeemScript = await wallet.getRedeemScript(address)
+
+    try {
+      await paymentchannel.close(urlPaymentChannel, redeemScript.script)
+    } catch (err) {
+      store.setRejectMessage(err.response.data.message)
+      return false
+    }
+
+    const paymentChannels = await wallet.getPaymentChannels()
+
+    for (const pc of paymentChannels) {
+      if (pc.address === address) {
+        pc.closing = true
+      }
+    }
+
+    // TODO: marked as closed ? at least until transaction show up
+    store.setPaymentChannels(paymentChannels)
+
+    return true
+  }
+
   // Create Interface
   const ui = new Interface({
     store,
@@ -107,6 +134,7 @@ async function app (args) {
     sendTransaction,
     initiatePaymentChannel,
     createMicroPayment,
+    closeChannel,
     paymentChannelServices: settings.PAYMENT_CHANNEL_URLS
   })
 

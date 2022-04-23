@@ -48,8 +48,18 @@ async function payment (url, transaction, redeemScript, signature, ref) {
   return result.data
 }
 
+async function close (url, redeemScript) {
+  debug('calling /api/v1/close')
+  const result = await axios.post(`${url}/api/v1/close`, { redeemScript })
+
+  // TODO: handle error
+
+  return result.data
+}
+
 module.exports = {
   getPublicKey,
   announce,
-  payment
+  payment,
+  close
 }
