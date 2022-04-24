@@ -1,5 +1,12 @@
 # Dogecoin SPV node
 
+!!!!!!!!!
+
+This repo has been moved to [https://github.com/ShibeTechnology/dogecoin-spv-node](https://github.com/ShibeTechnology/dogecoin-spv-node)
+
+!!!!!!!!!
+
+
 [![JavaScript Style Guide](https://cdn.rawgit.com/standard/standard/master/badge.svg)](https://github.com/standard/standard)
 
 A simple spv node for Dogecoin.
