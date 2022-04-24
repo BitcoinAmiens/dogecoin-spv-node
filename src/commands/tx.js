@@ -84,17 +84,17 @@ function decodeTxMessage (payload) {
 }
 
 function encodeRawTransaction (transaction) {
-  const txInCount = CompactSize.fromSize(transaction.txInCount)
-  const txOutCount = CompactSize.fromSize(transaction.txOutCount)
+  const txInCount = CompactSize.fromSize(transaction.txIns.length)
+  const txOutCount = CompactSize.fromSize(transaction.txOuts.length)
   let bufferSize = 4 + txInCount.length
 
-  for (let txIn = 0; txIn < transaction.txInCount; txIn++) {
+  for (let txIn = 0; txIn < transaction.txIns.length; txIn++) {
     bufferSize += 32 + 4 + transaction.txIns[txIn].signatureSize.length + transaction.txIns[txIn].signature.length + 4
   }
 
   bufferSize += txOutCount.length
 
-  for (let txOut = 0; txOut < transaction.txOutCount; txOut++) {
+  for (let txOut = 0; txOut < transaction.txOuts.length; txOut++) {
     bufferSize += 8 + CompactSize.fromSize(transaction.txOuts[txOut].pkScriptSize).length + transaction.txOuts[txOut].pkScriptSize
   }
 
@@ -109,7 +109,7 @@ function encodeRawTransaction (transaction) {
   txInCount.copy(buffer, offset)
   offset += txInCount.length
 
-  for (let txInIndex = 0; txInIndex < transaction.txInCount; txInIndex++) {
+  for (let txInIndex = 0; txInIndex < transaction.txIns.length; txInIndex++) {
     Buffer.from(transaction.txIns[txInIndex].previousOutput.hash, 'hex').copy(buffer, offset)
     offset += 32
 
@@ -131,7 +131,7 @@ function encodeRawTransaction (transaction) {
 
   offset += txOutCount.length
 
-  for (let txOutIndex = 0; txOutIndex < transaction.txOutCount; txOutIndex++) {
+  for (let txOutIndex = 0; txOutIndex < transaction.txOuts.length; txOutIndex++) {
     buffer.writeBigInt64LE(transaction.txOuts[txOutIndex].value, offset)
     offset += 8
 

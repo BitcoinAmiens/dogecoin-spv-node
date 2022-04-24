@@ -14,6 +14,7 @@ class MainScreen extends Screen {
       typeof args.displaySendDogeScreen !== 'function' ||
       typeof args.displayPaymentChannelScreen !== 'function' ||
       typeof args.displayMicroPaymentScreen !== 'function' ||
+      typeof args.displayCloseChannelScreen !== 'function' ||
       typeof args.stop !== 'function'
     ) {
       throw new Error("You need to define a 'store' object.")
@@ -24,6 +25,7 @@ class MainScreen extends Screen {
     this.displaySendDogeScreen = args.displaySendDogeScreen
     this.displayPaymentChannelScreen = args.displayPaymentChannelScreen
     this.displayMicroPaymentScreen = args.displayMicroPaymentScreen
+    this.displayCloseChannelScreen = args.displayCloseChannelScreen
     this.stop = args.stop
 
     this._handleChangedEvent = this._handleChangedEvent.bind(this)
@@ -62,17 +64,23 @@ class MainScreen extends Screen {
         this.store.removeListener('changed', this._handleChangedEvent)
         this.displayMicroPaymentScreen()
         break
+      case KEYS.NUM_KEY_5:
+        this.store.removeListener('changed', this._handleChangedEvent)
+        this.displayCloseChannelScreen()
+        break
     }
   }
 
   format (height = 0, bestHeight = 0, hash = null, numberOfPeers = 0, tips = new Map(), merkleHeight = 0, balance = 0n, paymentChannels = []) {
     // TODO: seperate in sublayout
 
-    let paymentChannelsSection = '    NONE'
+    debug(paymentChannels.length)
+
+    let paymentChannelsSection = '    NONE               '
     if (paymentChannels.length > 0) {
       paymentChannelsSection = ''
       for (const pc of paymentChannels) {
-        paymentChannelsSection += `    ${pc.address} ---> ${pc.balance / SATOSHIS} Ð                  \n`
+        paymentChannelsSection += `    ${pc.address} ---> ${pc.closing ? 'CLOSING' : (pc.balance / SATOSHIS + 'Ð')}                   \n`
       }
       // space padding
       paymentChannelsSection += '                                         '
@@ -94,16 +102,18 @@ class MainScreen extends Screen {
 
 ================ Payment Channels ===================
                                                      
-${paymentChannelsSection}                        
+${paymentChannelsSection}       
                                                      
 ================ Menu ===============================
                                                      
     1. Generate a new address                        
     2. Send dogecoins                                
     3. Create payment channel                        
-    ${paymentChannelsSection.length > 0 ? '4. Make a payment on payment channel' : null}
-                                                     
+    ${paymentChannels.length > 0 ? '4. Make a payment on payment channel' : '\n'}
+    ${paymentChannels.length > 0 ? '5. Close a payment channel' : '\n'}
+              
     0. Quit                                          
+                             
 `
     this.numberOfLines = layout.split('\n').length
 

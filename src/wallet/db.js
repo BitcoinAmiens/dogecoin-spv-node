@@ -59,6 +59,14 @@ class WalletDB {
     return this.pubkeys.put(pubkey.hash, pubkey)
   }
 
+  markPubkeyAsUsed (pubkeyHash) {
+    return this.pubkeys.get(pubkeyHash)
+      .then((value) => {
+        value.used = true
+        return this.pubkeys.put(pubkeyHash, value)
+      })
+  }
+
   getPubkey (pubkeyHash) {
     return new Promise((resolve, reject) => {
       this.pubkeys.get(pubkeyHash, function (err, value) {
@@ -81,6 +89,19 @@ class WalletDB {
         })
         .on('error', function (err) { reject(err) })
         .on('end', function () { resolve(pubkeys) })
+    })
+  }
+
+  getAllRedeemScripts () {
+    const redeemScripts = []
+
+    return new Promise((resolve, reject) => {
+      this.redeemScripts.createReadStream()
+        .on('data', (data) => {
+          redeemScripts.push(data)
+        })
+        .on('error', function (err) { reject(err) })
+        .on('end', function () { resolve(redeemScripts) })
     })
   }
 

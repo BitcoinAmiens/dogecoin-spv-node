@@ -10,6 +10,7 @@ const {
   MnemonicScreen,
   PaymentChannelScreen,
   MicroPaymentScreen,
+  CloseChannelScreen,
   DummyScreen
 } = require('./screens/')
 
@@ -26,16 +27,18 @@ class Interface extends EventEmitter {
       typeof args.sendTransaction !== 'function' ||
       typeof args.initiatePaymentChannel !== 'function' ||
       typeof args.createMicroPayment !== 'function' ||
+      typeof args.closeChannel !== 'function' ||
       typeof args.store !== 'object' ||
       typeof args.paymentChannelServices !== 'object'
     ) {
-      throw new Error("You need to define 'getAddress' function, 'sendTransaction' function, 'initiatePaymentChannel' function, 'createMicroPayment' function and a 'store' object.")
+      throw new Error("You need to define 'getAddress' function, 'sendTransaction' function, 'initiatePaymentChannel' function, 'createMicroPayment' function, 'closeChannel' function and a 'store' object.")
     }
 
     this.getAddress = args.getAddress
     this.sendTransaction = args.sendTransaction
     this.initiatePaymentChannel = args.initiatePaymentChannel
     this.createMicroPayment = args.createMicroPayment
+    this.closeChannel = args.closeChannel
     this.store = args.store
     this.paymentChannelServices = args.paymentChannelServices
 
@@ -150,7 +153,22 @@ class Interface extends EventEmitter {
         createMicroPayment: this.createMicroPayment,
         address: this.store.paymentChannels[0].address,
         displayMainScreen: this.displayMainScreen.bind(this),
-        paymentChannelServices: this.paymentChannelServices[0]
+        paymentChannelUrl: this.paymentChannelServices[0]
+      })
+    })
+  }
+
+  displayCloseChannelScreen () {
+    process.stdout.moveCursor(this.screen.cursorPosition, -(this.screen.numberOfLines - 1), async () => {
+      process.stdout.write(terminalStyle.CLEAR)
+
+      // Update screen
+      this.screen = new CloseChannelScreen({
+        closeChannel: this.closeChannel,
+        address: this.store.paymentChannels[0].address,
+        displayMainScreen: this.displayMainScreen.bind(this),
+        paymentChannelUrl: this.paymentChannelServices[0],
+        store: this.store
       })
     })
   }
@@ -164,6 +182,7 @@ class Interface extends EventEmitter {
         displaySendDogeScreen: this.displaySendDogeScreen.bind(this),
         displayPaymentChannelScreen: this.displayPaymentChannelScreen.bind(this),
         displayMicroPaymentScreen: this.displayMicroPaymentScreen.bind(this),
+        displayCloseChannelScreen: this.displayCloseChannelScreen.bind(this),
         stop: this.stop.bind(this)
       })
       // TODO: This ugly

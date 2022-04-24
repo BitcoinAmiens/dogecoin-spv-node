@@ -1,6 +1,6 @@
-FROM ubuntu:latest
+FROM ubuntu:focal
 
-RUN apt-get update
+RUN apt-get -y update
 
 RUN apt-get -y install wget curl
 

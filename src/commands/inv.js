@@ -20,19 +20,15 @@ function decodeInvMessage (data) {
       case '00000000':
         break
       case '01000000':
-        // console.log('MSG_TX')
         inventory.type = 'MSG_TX'
         break
       case '02000000':
-        // console.log('MSG_BLOCK')
         inventory.type = 'MSG_BLOCK'
         break
       case '03000000':
-        // console.log('MSG_FILTERED_BLOCK')
         inventory.type = 'MSG_FILTERED_BLOCK'
         break
       case '04000000':
-        // console.log('MSG_CMPCT_BLOCK')
         inventory.type = 'MSG_CMPCT_BLOCK'
         break
       default:

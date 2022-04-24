@@ -34,7 +34,6 @@ function decodePacket (packet, magicBytesExpected) {
   let offset = 0
 
   if (packet.length < 4) {
-    // console.log('Incorrect packet ' + packet.toString('hex'))
     return false
   }
 
