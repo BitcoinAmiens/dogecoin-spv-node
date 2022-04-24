@@ -6,7 +6,7 @@ services:
   - docker
 
 before_script:
-  - docker build --network=host -t dogecoind provision/dogecoind/
+  - docker build -t dogecoind provision/dogecoind/
 
 script:
   - npm run lint
